@@ -16,7 +16,7 @@
    "rev": "3772abe680e77bf89c281579d82f4df49b6eda5e",
    "name": "regular",
    "manifestFile": "lake-manifest.json",
-   "inputRev": "3772abe680e77bf89c281579d82f4df49b6eda5e",
+   "inputRev": "v0.1.0",
    "inherited": true,
    "configFile": "lakefile.lean"}],
  "name": "test",
