@@ -1,0 +1,17 @@
+name = "test"
+defaultTargets = ["HtmlModelTests"]
+testDriver = "tests"
+
+[leanOptions]
+warningAsError = true
+
+[[require]]
+name = "html-model"
+path = ".."
+
+[[lean_lib]]
+name = "HtmlModelTests"
+
+[[lean_exe]]
+name = "tests"
+root = "Main"

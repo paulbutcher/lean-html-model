@@ -1,0 +1,16 @@
+{"version": "1.3.0",
+ "packagesDir": ".lake/packages",
+ "packages":
+ [{"url": "https://github.com/paulbutcher/lean-regular",
+   "type": "git",
+   "subDir": null,
+   "scope": "",
+   "rev": "3772abe680e77bf89c281579d82f4df49b6eda5e",
+   "name": "regular",
+   "manifestFile": "lake-manifest.json",
+   "inputRev": "3772abe680e77bf89c281579d82f4df49b6eda5e",
+   "inherited": false,
+   "configFile": "lakefile.lean"}],
+ "name": "«html-model»",
+ "lakeDir": ".lake",
+ "fixedToolchain": false}
