@@ -7,6 +7,7 @@ module
 public import HtmlModel.Engine.Tree
 public import HtmlModel.Html
 public import HtmlModel.Svg
+public import HtmlModel.Mathml
 
 @[expose] public section
 
@@ -19,6 +20,7 @@ inductive Cat where
   | text
   | html (c : Html.Cat)
   | svg (c : Svg.Cat)
+  | mathml (c : Mathml.Cat)
   /-- What every category is valid wherever: the content of an element admitting any elements or
   character data. -/
   | any
@@ -28,11 +30,13 @@ def Cat.above : Cat → List Cat
   | .text => [.html .phrasing, .html .flow, .html .phrasingOrHeading, .any]
   | .html c => c.above.map .html ++ [.any]
   | .svg c => c.above.map .svg ++ [.any]
+  | .mathml _ => [.any]
   | .any => []
 
 inductive Elem where
   | html (e : Html.Elem)
   | svg (e : Svg.Elem)
+  | mathml (e : Mathml.Elem)
   /-- An autonomous custom element, whose categories and content model its caller supplies. -/
   | custom (name : String) (h : isCustomElementName name = true) (cats : List Cat)
       (specs : List (Cat × Spec Cat))
@@ -170,29 +174,59 @@ def svgSpec : Svg.Elem → Svg.Cat → Spec Cat
   | .feFuncG, _ | .feFuncR, _ | .feMergeNode, _ | .feDistantLight, _ | .fePointLight, _
   | .feSpotLight, _ => ⟨anyOf [sg .descriptive, se .animate, se .script, se .set], true⟩
 
+def mm (c : Mathml.Cat) : Regex Cat := .sym (.mathml c)
+
+/-- A subscript and superscript in `mmultiscripts`. -/
+def scriptPair : Regex Cat := seq [mm .expr, mm .expr]
+
+def mathmlSpec : Mathml.Elem → Mathml.Cat → Spec Cat
+  | .mi, _ | .mn, _ | .mo, _ | .ms, _ | .mtext, _ => ⟨.star (hs .phrasing), false⟩
+  | .mspace, _ | .mprescripts, _ => voidSpec
+  | .mfrac, _ | .mroot, _ | .msub, _ | .msup, _ | .munder, _ | .mover, _ =>
+    ⟨seq [mm .expr, mm .expr], true⟩
+  | .msubsup, _ | .munderover, _ => ⟨seq [mm .expr, mm .expr, mm .expr], true⟩
+  | .mmultiscripts, _ =>
+    ⟨seq [mm .expr, .star scriptPair, opt (seq [mm .prescripts, .star scriptPair])], true⟩
+  | .mtable, _ => ⟨.star (mm .row), true⟩
+  | .mtr, _ => ⟨.star (mm .cell), true⟩
+  | .semantics, _ =>
+    ⟨seq [mm .expr, .star (oneOf [mm .annotation, mm .annotationXmlHtml, mm .annotationXml])],
+      true⟩
+  | .annotation, _ => textSpec
+  | .annotationXml, .annotationXmlHtml => flowSpec
+  | .annotationXml, _ => ⟨.star (oneOf [mm .expr, .sym (.svg (.el .svg))]), true⟩
+  | .math, _ | .maction, _ | .merror, _ | .mpadded, _ | .mphantom, _ | .mrow, _ | .msqrt, _
+  | .mstyle, _ | .mtd, _ => ⟨.star (mm .expr), true⟩
+
 def Elem.spec : Elem → Cat → Spec Cat
   | .html e, .html c => htmlSpec e c
   | .svg .svg, .html .phrasing => svgSpec .svg (.el .svg)
   | .svg e, .svg c => svgSpec e c
-  | .html _, _ | .svg _, _ => noSpec
+  | .mathml .math, .html .phrasing => mathmlSpec .math .expr
+  | .mathml e, .mathml c => mathmlSpec e c
+  | .html _, _ | .svg _, _ | .mathml _, _ => noSpec
   | .custom _ _ _ specs, c => (specs.lookup c).getD noSpec
 
 def Elem.cats : Elem → List Cat
   | .html e => e.cats.map .html
   | .svg .svg => [.html .phrasing, .svg (.el .svg)]
   | .svg e => e.cats.map .svg
+  | .mathml .math => [.html .phrasing]
+  | .mathml e => e.cats.map .mathml
   | .custom _ _ cats _ => cats
 
-/-- The vocabulary of HTML and SVG, with custom elements. -/
+/-- The vocabulary of HTML, SVG, and MathML Core, with custom elements. -/
 abbrev vocab : Vocabulary where
   Elem := Elem
   Cat := Cat
   ns
     | .svg _ => .svg
+    | .mathml _ => .mathml
     | _ => .html
   name
     | .html e => e.name
     | .svg e => e.name
+    | .mathml e => e.name
     | .custom name .. => name
   above := Cat.above
   cats := Elem.cats

@@ -2,7 +2,7 @@
 
 ## [0.1.0] - 2026-10-31
 
-* A tree of HTML and SVG elements indexed by category, each element's children checked against its content model by lean-regular at compile time, lists known only at run time included
+* A tree of HTML, SVG, and MathML Core elements indexed by category, each element's children checked against its content model by lean-regular at compile time, lists known only at run time included
 * Erasure to an untyped tree, proven to satisfy a validity predicate stated on the erased tree alone, and a payload map that commutes with it
 * Custom elements, unchecked elements, and verbatim markup, each of which a consumer can detect and refuse
 * A rejected element's error names the segment of its children that is wrong

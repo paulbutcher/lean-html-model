@@ -29,7 +29,7 @@ def Placed.cat : Placed → Cat
 def elemOf? : Namespace → String → Option Elem
   | .html, tag => (Html.Elem.ofName? tag).map .html
   | .svg, tag => (Svg.Elem.ofName? tag).map .svg
-  | .mathml, _ => none
+  | .mathml, tag => (Mathml.Elem.ofName? tag).map .mathml
 
 /-- An element of category `c`, if it admits the children placed for it. -/
 def build (e : Elem) (c : Cat) (kids : List Placed) : Option Placed :=
@@ -71,6 +71,7 @@ def roundTrip (r : Raw) : Option Raw :=
 
 def h (tag : String) (children : List Raw) : Raw := .elem .html tag children
 def s (tag : String) (children : List Raw) : Raw := .elem .svg tag children
+def m (tag : String) (children : List Raw) : Raw := .elem .mathml tag children
 
 def page : Raw :=
   h "html" [
@@ -78,6 +79,8 @@ def page : Raw :=
     h "body" [
       h "h1" [.text "Hi"],
       h "p" [.text "Read ", h "a" [.text "this"], .text "."],
+      h "p" [.text "Area: ", m "math" [m "mrow" [m "mi" [.text "π"], m "mo" [.text "⁢"],
+        m "msup" [m "mi" [.text "r"], m "mn" [.text "2"]]]]],
       h "p" [s "svg" [.text "\n", s "g" [s "rect" [], s "text" [.text "Hi ", s "tspan" [.text "there"]]],
         s "a" [s "circle" []], s "foreignObject" [h "p" [.text "HTML"]]]],
       h "a" [h "p" [.text "A block link"]],
@@ -93,6 +96,7 @@ def page : Raw :=
 #guard roundTrip (h "html" [h "head" [h "title" []], h "body" [h "p" [h "div" []]]]) == none
 #guard roundTrip (h "html" [h "head" [h "title" []], h "body" [h "ul" [.text "x"]]]) == none
 #guard roundTrip (h "html" [h "head" [], h "body" []]) == none
+#guard roundTrip (h "html" [h "head" [h "title" []], h "body" [m "math" [m "mfrac" [m "mn" []]]]]) == none
 #guard roundTrip (h "html" [h "head" [h "title" []], h "body" [s "svg" [s "g" [.text "x"]]]]) == none
 
 end HtmlModelTests.Lasm

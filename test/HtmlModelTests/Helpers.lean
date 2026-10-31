@@ -37,6 +37,17 @@ abbrev inlineSvg {ks : List (SegK Cat)} (segs : Segs vocab Unit ks)
     (ok : vocab.Admits (.svg .svg) (.html .phrasing) ks := by admits) : N (.html .phrasing) :=
   Web.elem (.svg .svg) (.html .phrasing) () segs (by decide +kernel) ok
 
+/-- A MathML element, with no payload. -/
+abbrev mx (e : Mathml.Elem) (c : Mathml.Cat := .expr) {ks : List (SegK Cat)} (segs : Segs vocab Unit ks)
+    (hc : Cat.mathml c ∈ vocab.cats (.mathml e) := by decide +kernel)
+    (ok : vocab.Admits (.mathml e) (.mathml c) ks := by admits) : N (.mathml c) :=
+  Web.elem (.mathml e) (.mathml c) () segs hc ok
+
+/-- A `math` element standing in HTML phrasing content. -/
+abbrev inlineMath {ks : List (SegK Cat)} (segs : Segs vocab Unit ks)
+    (ok : vocab.Admits (.mathml .math) (.html .phrasing) ks := by admits) : N (.html .phrasing) :=
+  Web.elem (.mathml .math) (.html .phrasing) () segs (by decide +kernel) ok
+
 def txt (s : String) : N .text := .text s
 
 def nodes {c : Html.Cat} (ns : List (N (.html c))) : Seg vocab Unit (.many (.html c)) :=

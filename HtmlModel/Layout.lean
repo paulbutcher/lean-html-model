@@ -22,6 +22,7 @@ def _root_.HtmlModel.Tree.isInline : Tree α → Bool
     c.isInline || (c == .flow && e.isTransparent && Tree.allInline ch)
   | .elem _ (.html c) _ _ => c.isInline
   | .elem (.svg e) (.svg c) _ _ => e.keepsWhitespace || c.inText
+  | .elem (.mathml _) (.mathml _) _ _ => false
   | .elem _ _ _ _ => true
 /-- Whether every one of `ts` lays out inline. -/
 def _root_.HtmlModel.Tree.allInline : List (Tree α) → Bool
@@ -34,6 +35,7 @@ pretty-printer may add none there even beside children that are not inline. -/
 def _root_.HtmlModel.Tree.keepsWhitespace : Tree α → Bool
   | .elem (.html .pre) _ _ _ | .elem (.html .textarea) _ _ _ => true
   | .elem (.svg e) (.svg c) _ _ => e.keepsWhitespace || c.inText
+  | .elem (.mathml e) _ _ _ => e.isToken
   | _ => false
 
 end HtmlModel.Web

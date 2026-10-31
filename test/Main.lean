@@ -5,7 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 import HtmlModelTests
 
 /-! Times elaborating three generated documents, each of which must take under `budgetMs`: one of
-500 elements with default proofs, one of 500 mostly SVG elements with default proofs, and one of
+500 elements with default proofs, one of 500 mixing HTML, SVG and MathML with default proofs, and one of
 2,000 in a single term, as a macro such as `html!`
 would generate it, proving each distinct element, category and kinds of children once and reusing
 the proof. -/
@@ -65,9 +65,14 @@ def document (sections : Nat) (cached : Bool) : String :=
   let body := ",\n  ".intercalate ((List.range sections).map (section_ cached))
   header ++ theorems ++ s!"def doc : N (.html .flow) := {el cached "kDiv" s!"nodes [\n  {body}]"}\n"
 
-/-- About twenty-two elements, an HTML figure holding an SVG with a gradient, a filter, shapes, and text. -/
-def svgSection (i : Nat) : String :=
-  s!"el .div .flow segs![.one (el .p .paragraph segs![.one (txt \"Figure {i}\")]), .one (inlineSvg segs![.ws \"\\n\", " ++
+/-- About thirty elements, an HTML figure holding a formula and an SVG with a gradient, a filter, shapes,
+and text. -/
+def mixedSection (i : Nat) : String :=
+  s!"el .div .flow segs![.one (el .p .paragraph segs![.one (txt \"Figure {i}: \"), " ++
+  ".one (inlineMath segs![.one (mx .mrow .expr segs![.one (mx .mi .expr segs![.one (txt \"x\")]), " ++
+  ".one (mx .mo .expr segs![.one (txt \"=\")]), .one (mx .mfrac .expr segs![.one (mx .mn .expr segs![.one (txt \"1\")]), " ++
+  ".one (mx .mn .expr segs![.one (txt \"2\")])])])])]), " ++
+  ".one (inlineSvg segs![.ws \"\\n\", " ++
   ".one (sv .defs segs![.one (sv .linearGradient segs![.one (sv .stop segs![]), .one (sv .stop segs![])]), " ++
   ".one (sv .filter segs![.one (sv .feGaussianBlur segs![]), .one (sv .feOffset segs![]), " ++
   ".one (sv .feMerge segs![.one (sv .feMergeNode segs![]), .one (sv .feMergeNode segs![])])])]), " ++
@@ -75,10 +80,10 @@ def svgSection (i : Nat) : String :=
   ".one (sv .path segs![]), .one (sv .text segs![.one (txt \"t\"), .one (sv .tspan segs![.one (txt \"x\")])]), " ++
   ".one (sa .aContainer segs![.one (sv .rect segs![])])])])]"
 
-def svgDocument (sections : Nat) : String :=
+def mixedDocument (sections : Nat) : String :=
   "import HtmlModelTests.Helpers\n\nopen HtmlModel Web HtmlModelTests\n\n" ++
     s!"def doc : N (.html .flow) := el .div .flow segs![nodes [\n  " ++
-    ",\n  ".intercalate ((List.range sections).map svgSection) ++ "]]\n"
+    ",\n  ".intercalate ((List.range sections).map mixedSection) ++ "]]\n"
 
 def run (name : String) (source : String) : IO Bool := do
   let dir : System.FilePath := ".lake" / "bench"
@@ -99,6 +104,6 @@ def run (name : String) (source : String) : IO Bool := do
 
 def main : IO UInt32 := do
   let defaults ← run "Defaults" (document 25 false)
-  let svg ← run "Svg" (svgDocument 23)
+  let mixed ← run "Mixed" (mixedDocument 17)
   let cached ← run "Cached" (document 100 true)
-  return if defaults && svg && cached then 0 else 1
+  return if defaults && mixed && cached then 0 else 1
