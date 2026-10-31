@@ -11,5 +11,6 @@ import HtmlModelTests.Names
 import HtmlModelTests.Erasure
 import HtmlModelTests.Infer
 import HtmlModelTests.Layout
+import HtmlModelTests.Svg
 import HtmlModelTests.Lasm
 import HtmlModelTests.Readme

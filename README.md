@@ -1,6 +1,6 @@
 # html-model
 
-A Lean 4 library that models a tree of HTML elements whose shape satisfies the HTML Living Standard's content models, with no knowledge of how the tree is serialized. An element's children are checked against its content model at compile time, even when they include lists known only at run time, and a tree erases to an untyped one that a renderer or a virtual DOM can consume, with a proof that the erased tree is valid.
+A Lean 4 library that models a tree of HTML and SVG elements whose shape satisfies those standards' content models, with no knowledge of how the tree is serialized. An element's children are checked against its content model at compile time, even when they include lists known only at run time, and a tree erases to an untyped one that a renderer or a virtual DOM can consume, with a proof that the erased tree is valid.
 
 It is the typed core shared by [lean-html](https://github.com/paulbutcher/lean-html), which renders HTML to strings, and a typed backend for [lasm](https://github.com/Millillion/lasm)'s `html!` macro. Content models are regular grammars, decided by [lean-regular](https://github.com/paulbutcher/lean-regular).
 
@@ -80,6 +80,12 @@ example : (list ["a"]).erase.Valid := (list ["a"]).valid_erase
 - Whitespace is inter-element whitespace where the content model is not phrasing content, and text elsewhere. A whitespace segment needs a proof that it is whitespace, which `decide` gives for a literal.
 - Not modelled: constraints on descendants rather than children, such as no interactive content inside `a`, and rules that depend on attributes, such as a media element with a `src` taking no `source` children.
 
+## SVG
+
+- SVG follows [SVG 2](https://www.w3.org/TR/2026/CR-SVG2-20261006/) (W3C Candidate Recommendation Snapshot, 6 October 2026), with the filter primitives of [Filter Effects Module Level 1](https://www.w3.org/TR/2018/WD-filter-effects-1-20181218/) (W3C Working Draft, 18 December 2018), `clipPath` and `mask` from [CSS Masking Module Level 1](https://www.w3.org/TR/2021/CRD-css-masking-1-20210805/) (W3C Candidate Recommendation Draft, 5 August 2021), and the animation elements of [SVG Animations Level 2](https://svgwg.org/specs/animations/) (Editor's Draft, 14 September 2025, which the W3C has not published). Elements those specifications removed, such as SVG fonts, `tref`, and `animateColor`, are absent.
+- `svg` is phrasing content in HTML and a container in SVG. Each SVG element has a category of its own, valid wherever the named categories it belongs to are, such as shape or animation elements. SVG `a` holds what its parent holds, taking one of four categories: content of a container, `text`, `tspan`, or `textPath`.
+- `foreignObject`, `title`, `desc`, and `metadata` admit any elements or character data, HTML included. `feDiffuseLighting` and `feSpecularLighting` hold exactly one light source, and `animateMotion` at most one `mpath`.
+
 ## Escape hatches
 
 - A custom element's name must be a valid custom element name, and its caller supplies its categories and content model, which are checked like any other.
@@ -91,8 +97,8 @@ example : (list ["a"]).erase.Valid := (list ["a"]).valid_erase
 
 - A child whose category is unknown when the tree is elaborated, such as an absent optional child or an empty list literal, makes elaboration fail or slow down sharply. `Seg.ofOption` and `Seg.ofList` take the category explicitly.
 - Lean defers default-argument proofs to the end of a term, where thousands of them slow down together. A large generated term should prove each distinct element, category, and kinds of children once as an auxiliary theorem and pass it explicitly; `test/Main.lean` generates such a term of 2,000 elements, which elaborates in about 3 seconds. `Vocabulary.admits_of_kinds` reuses a proof across children whose kinds differ but coarsen alike.
-- `Vocabulary.infer` finds the category an element takes from its children and its parent's content model, and `Html.Elem.ofName?` the element a tag name names.
-- `Tree.isInline` says whether whitespace beside a node would render, so that a pretty-printer must not put any there.
+- `Vocabulary.infer` finds the category an element takes from its children and its parent's content model, and `Html.Elem.ofName?` and `Svg.Elem.ofName?` the element a tag name names.
+- `Tree.isInline` says whether whitespace beside a node would render, so that a pretty-printer must not put any there. `Tree.keepsWhitespace` says whether whitespace renders among an element's children wherever it stands, as in SVG `text`.
 
 ## Formal verification
 

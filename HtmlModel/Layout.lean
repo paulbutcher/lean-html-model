@@ -20,11 +20,20 @@ def _root_.HtmlModel.Tree.isInline : Tree α → Bool
   | .text _ | .verbatim _ _ | .unchecked .. | .elem (.custom ..) _ _ _ => true
   | .elem (.html e) (.html c) _ ch =>
     c.isInline || (c == .flow && e.isTransparent && Tree.allInline ch)
-  | .elem (.html _) .text _ _ => true
+  | .elem _ (.html c) _ _ => c.isInline
+  | .elem (.svg e) (.svg c) _ _ => e.keepsWhitespace || c.inText
+  | .elem _ _ _ _ => true
 /-- Whether every one of `ts` lays out inline. -/
 def _root_.HtmlModel.Tree.allInline : List (Tree α) → Bool
   | [] => true
   | t :: ts => Tree.isInline t && Tree.allInline ts
 end
+
+/-- Whether whitespace renders among this element's children wherever it stands, so that a
+pretty-printer may add none there even beside children that are not inline. -/
+def _root_.HtmlModel.Tree.keepsWhitespace : Tree α → Bool
+  | .elem (.html .pre) _ _ _ | .elem (.html .textarea) _ _ _ => true
+  | .elem (.svg e) (.svg c) _ _ => e.keepsWhitespace || c.inText
+  | _ => false
 
 end HtmlModel.Web

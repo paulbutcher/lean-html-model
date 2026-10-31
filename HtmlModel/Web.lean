@@ -6,6 +6,7 @@ module
 
 public import HtmlModel.Engine.Tree
 public import HtmlModel.Html
+public import HtmlModel.Svg
 
 @[expose] public section
 
@@ -17,14 +18,21 @@ inductive Cat where
   /-- Character data, which every vocabulary shares. -/
   | text
   | html (c : Html.Cat)
+  | svg (c : Svg.Cat)
+  /-- What every category is valid wherever: the content of an element admitting any elements or
+  character data. -/
+  | any
   deriving DecidableEq, Repr
 
 def Cat.above : Cat → List Cat
-  | .text => [.html .phrasing, .html .flow, .html .phrasingOrHeading]
-  | .html c => c.above.map .html
+  | .text => [.html .phrasing, .html .flow, .html .phrasingOrHeading, .any]
+  | .html c => c.above.map .html ++ [.any]
+  | .svg c => c.above.map .svg ++ [.any]
+  | .any => []
 
 inductive Elem where
   | html (e : Html.Elem)
+  | svg (e : Svg.Elem)
   /-- An autonomous custom element, whose categories and content model its caller supplies. -/
   | custom (name : String) (h : isCustomElementName name = true) (cats : List Cat)
       (specs : List (Cat × Spec Cat))
@@ -94,22 +102,97 @@ def htmlSpec : Html.Elem → Html.Cat → Spec Cat
 /-- The empty language, for a category an element cannot take. -/
 def noSpec : Spec Cat := ⟨.empty, false⟩
 
+def se (e : Svg.Elem) : Regex Cat := .sym (.svg (.el e))
+def sg (g : Svg.Group) : Regex Cat := .sym (.svg (.group g))
+def anyOf (rs : List (Regex Cat)) : Regex Cat := .star (oneOf rs)
+
+/-- What a container such as `g` holds, with or without `a`, which may not hold another. -/
+def containerContent (a : Bool) : List (Regex Cat) :=
+  [sg .animation, sg .descriptive, sg .paintServer, sg .shape, sg .structural, se .clipPath,
+    se .filter, se .foreignObject, se .image, se .marker, se .mask, se .script, se .style,
+    se .switch, se .text, se .view] ++ if a then [.sym (.svg .aContainer)] else []
+
+def textContent (a : Bool) : List (Regex Cat) :=
+  [.sym .text, sg .animation, sg .descriptive, sg .paintServer, sg .textContentChild, se .clipPath,
+    se .marker, se .mask, se .script, se .style] ++ if a then [.sym (.svg .aText)] else []
+
+def tspanContent (a : Bool) : List (Regex Cat) :=
+  [.sym .text, sg .descriptive, sg .paintServer, se .animate, se .script, se .set, se .style,
+    se .tspan] ++ if a then [.sym (.svg .aTspan)] else []
+
+def textPathContent (a : Bool) : List (Regex Cat) :=
+  [.sym .text, sg .descriptive, sg .paintServer, se .animate, se .clipPath, se .marker, se .mask,
+    se .script, se .set, se .style, se .tspan] ++ if a then [.sym (.svg .aTextPath)] else []
+
+def svgSpec : Svg.Elem → Svg.Cat → Spec Cat
+  | .svg, _ | .g, _ | .defs, _ | .symbol, _ | .marker, _ | .pattern, _ | .mask, _ =>
+    ⟨anyOf (containerContent true), true⟩
+  | .a, .aContainer => ⟨anyOf (containerContent false), true⟩
+  | .a, .aText => ⟨anyOf (textContent false), false⟩
+  | .a, .aTspan => ⟨anyOf (tspanContent false), false⟩
+  | .a, .aTextPath => ⟨anyOf (textPathContent false), false⟩
+  | .a, _ => noSpec
+  | .text, _ => ⟨anyOf (textContent true), false⟩
+  | .tspan, _ => ⟨anyOf (tspanContent true), false⟩
+  | .textPath, _ => ⟨anyOf (textPathContent true), false⟩
+  | .clipPath, _ =>
+    ⟨anyOf [sg .descriptive, sg .animation, sg .shape, se .text, se .use, se .script], true⟩
+  | .use, _ | .image, _ =>
+    ⟨anyOf [sg .animation, sg .descriptive, se .clipPath, se .mask, se .script, se .style], true⟩
+  | .switch, _ =>
+    ⟨anyOf [sg .animation, sg .shape, .sym (.svg .aContainer), se .foreignObject, se .g,
+      se .image, se .svg, se .switch, se .text, se .use], true⟩
+  | .title, _ | .desc, _ | .metadata, _ => ⟨.star (.sym .any), false⟩
+  | .foreignObject, _ => ⟨.star (.sym .any), true⟩
+  | .circle, _ | .ellipse, _ | .line, _ | .path, _ | .polygon, _ | .polyline, _ | .rect, _ =>
+    ⟨anyOf [sg .animation, sg .descriptive, sg .paintServer, se .clipPath, se .marker, se .mask,
+      se .script, se .style], true⟩
+  | .linearGradient, _ | .radialGradient, _ =>
+    ⟨anyOf [sg .descriptive, se .animate, se .animateTransform, se .script, se .set, se .stop,
+      se .style], true⟩
+  | .stop, _ => ⟨anyOf [se .animate, se .script, se .set, se .style], true⟩
+  | .view, _ => ⟨anyOf [sg .animation, sg .descriptive, se .script, se .style], true⟩
+  | .script, _ | .style, _ => textSpec
+  | .animate, _ | .set, _ | .animateTransform, _ | .mpath, _ =>
+    ⟨anyOf [sg .descriptive, se .script], true⟩
+  | .animateMotion, _ => ⟨.interleave (opt (se .mpath)) (anyOf [sg .descriptive, se .script]), true⟩
+  | .filter, _ =>
+    ⟨anyOf [sg .descriptive, sg .filterPrimitive, se .animate, se .script, se .set], true⟩
+  | .feComponentTransfer, _ => ⟨anyOf [sg .descriptive, sg .transferFunction, se .script], true⟩
+  | .feDiffuseLighting, _ | .feSpecularLighting, _ =>
+    ⟨.interleave (sg .lightSource) (anyOf [sg .descriptive, se .script]), true⟩
+  | .feMerge, _ => ⟨anyOf [sg .descriptive, se .feMergeNode, se .script], true⟩
+  | .feImage, _ =>
+    ⟨anyOf [sg .descriptive, se .animate, se .animateTransform, se .script, se .set], true⟩
+  | .feBlend, _ | .feColorMatrix, _ | .feComposite, _ | .feConvolveMatrix, _
+  | .feDisplacementMap, _ | .feDropShadow, _ | .feFlood, _ | .feGaussianBlur, _
+  | .feMorphology, _ | .feOffset, _ | .feTile, _ | .feTurbulence, _ | .feFuncA, _ | .feFuncB, _
+  | .feFuncG, _ | .feFuncR, _ | .feMergeNode, _ | .feDistantLight, _ | .fePointLight, _
+  | .feSpotLight, _ => ⟨anyOf [sg .descriptive, se .animate, se .script, se .set], true⟩
+
 def Elem.spec : Elem → Cat → Spec Cat
   | .html e, .html c => htmlSpec e c
-  | .html _, .text => noSpec
+  | .svg .svg, .html .phrasing => svgSpec .svg (.el .svg)
+  | .svg e, .svg c => svgSpec e c
+  | .html _, _ | .svg _, _ => noSpec
   | .custom _ _ _ specs, c => (specs.lookup c).getD noSpec
 
 def Elem.cats : Elem → List Cat
   | .html e => e.cats.map .html
+  | .svg .svg => [.html .phrasing, .svg (.el .svg)]
+  | .svg e => e.cats.map .svg
   | .custom _ _ cats _ => cats
 
-/-- The vocabulary of HTML, with custom elements. -/
+/-- The vocabulary of HTML and SVG, with custom elements. -/
 abbrev vocab : Vocabulary where
   Elem := Elem
   Cat := Cat
-  ns _ := .html
+  ns
+    | .svg _ => .svg
+    | _ => .html
   name
     | .html e => e.name
+    | .svg e => e.name
     | .custom name .. => name
   above := Cat.above
   cats := Elem.cats
