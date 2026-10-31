@@ -4,13 +4,20 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 import HtmlModelTests
 
-/-! Times elaborating three generated documents, each of which must take under `budgetMs`: one of
-500 elements with default proofs, one of 500 mixing HTML, SVG and MathML with default proofs, and one of
-2,000 in a single term, as a macro such as `html!`
-would generate it, proving each distinct element, category and kinds of children once and reusing
-the proof. -/
+/-! Times elaborating three generated documents: one of 500 elements with default proofs, one of 500
+mixing HTML, SVG and MathML with default proofs, and one of 2,000 in a single term, as a macro such
+as `html!` would generate it, proving each distinct element, category and kinds of children once and
+reusing the proof.
 
-def budgetMs : Nat := 5000
+Each time excludes loading the imports and is budgeted in units of a fixed kernel reduction timed in
+the same run, so that the budgets hold on a slower machine. Heartbeats would not depend on the
+machine, but they do not count the kernel's work, which is where the `admits` tactic spends its
+time. -/
+
+def header : String := "import HtmlModelTests.Helpers\n\nopen HtmlModel Web HtmlModelTests Regular\n\n"
+
+def calibration : String :=
+  header ++ "theorem calibration : (List.range 20000).foldl (· + ·) 0 = 199990000 := by decide +kernel\n"
 
 /-- An element, its category, and the kinds of children its cached proofs are about. -/
 structure Key where
@@ -56,7 +63,6 @@ def section_ (cached : Bool) (i : Nat) : String :=
     s!".one ({el "kTable" s!".one ({el "kTbody" s!"nodes [{trs}]"})"})")
 
 def document (sections : Nat) (cached : Bool) : String :=
-  let header := "import HtmlModelTests.Helpers\n\nopen HtmlModel Web HtmlModelTests Regular\n\n"
   let theorems := if cached then
       String.join (keys.map fun k =>
         s!"theorem {k.name}_cat : Cat.html .{k.cat} ∈ vocab.cats (.html .{k.elem}) := by decide\n" ++
@@ -81,11 +87,11 @@ def mixedSection (i : Nat) : String :=
   ".one (sa .aContainer segs![.one (sv .rect segs![])])])])]"
 
 def mixedDocument (sections : Nat) : String :=
-  "import HtmlModelTests.Helpers\n\nopen HtmlModel Web HtmlModelTests\n\n" ++
-    s!"def doc : N (.html .flow) := el .div .flow segs![nodes [\n  " ++
+  header ++ s!"def doc : N (.html .flow) := el .div .flow segs![nodes [\n  " ++
     ",\n  ".intercalate ((List.range sections).map mixedSection) ++ "]]\n"
 
-def run (name : String) (source : String) : IO Bool := do
+/-- Milliseconds to elaborate `source`, or `none` if it fails. -/
+def elaborate (name : String) (source : String) : IO (Option Nat) := do
   let dir : System.FilePath := ".lake" / "bench"
   IO.FS.createDirAll dir
   let path := dir / s!"{name}.lean"
@@ -95,15 +101,30 @@ def run (name : String) (source : String) : IO Bool := do
   let ms := (← IO.monoMsNow) - start
   if out.exitCode != 0 then
     IO.eprintln s!"{name}: failed to elaborate\n{out.stdout}{out.stderr}"
-    return false
-  IO.println s!"{name}: {ms} ms"
-  if ms > budgetMs then
-    IO.eprintln s!"{name}: over the budget of {budgetMs} ms"
+    return none
+  return some ms
+
+/-- The fastest of three runs, because noise in the baselines would scale every budget. -/
+def fastest (name : String) (source : String) : IO (Option Nat) := do
+  let runs ← (List.range 3).mapM fun _ => elaborate name source
+  return (runs.mapM id).bind List.min?
+
+def run (imports unit : Nat) (name : String) (budget : Nat) (source : String) : IO Bool := do
+  let some total ← elaborate name source | return false
+  let ms := total - imports
+  let tenths := ms * 10 / unit
+  IO.println s!"{name}: {ms} ms, {tenths / 10}.{tenths % 10} units"
+  if ms > budget * unit then
+    IO.eprintln s!"{name}: over the budget of {budget} units"
     return false
   return true
 
 def main : IO UInt32 := do
-  let defaults ← run "Defaults" (document 25 false)
-  let mixed ← run "Mixed" (mixedDocument 17)
-  let cached ← run "Cached" (document 100 true)
+  let some imports ← fastest "Imports" header | return 1
+  let some calibrated ← fastest "Calibration" calibration | return 1
+  let unit := max 1 (calibrated - imports)
+  IO.println s!"Unit: {unit} ms"
+  let defaults ← run imports unit "Defaults" 2 (document 25 false)
+  let mixed ← run imports unit "Mixed" 2 (mixedDocument 17)
+  let cached ← run imports unit "Cached" 8 (document 100 true)
   return if defaults && mixed && cached then 0 else 1
