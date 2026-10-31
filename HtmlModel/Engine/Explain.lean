@@ -41,7 +41,7 @@ def rejection (e : V.Elem) (c : V.Cat) (ks : List (SegK V.Cat)) : Option (Reject
   | none => none
   | some w =>
     match diagnose V.widens spec.grammar (w.map (·.2)) with
-    | .unexpected i =>
+    | .unexpected i _ =>
       match w[i]? with
       | some (pos, l) =>
         some (.unexpected (segmentOf (ks.map fun k => (V.segShape spec.ws k).letters.length) pos) l)

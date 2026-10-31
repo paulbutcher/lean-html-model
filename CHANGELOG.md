@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.0] - 2026-10-31
+
+* Requires lean-regular 0.2.0
+
 ## [0.1.1] - 2026-10-31
 
 * Groups are made of segments, so repetition nests, as in `dl` groups and ruby segments built from run-time lists
