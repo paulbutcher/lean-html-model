@@ -1,0 +1,6 @@
+name = "html-model"
+version = "0.1.0"
+defaultTargets = ["HtmlModel"]
+
+[[lean_lib]]
+name = "HtmlModel"
