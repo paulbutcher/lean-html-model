@@ -67,13 +67,46 @@ example : N (.html .document) :=
 -- Children known only at run time, as lists and as groups.
 example (entries : List (String × String)) : N (.html .flow) :=
   el .dl .flow segs![.groups (Groups.ofList (entries.map fun (k, v) =>
-    .cons (el .dt .term segs![.one (txt k)]) (.cons (el .dd .description segs![.one (txt v)]) .nil)))]
+    segs![.one (el .dt .term segs![.one (txt k)]), .one (el .dd .description segs![.one (txt v)])]))]
 example (rows : List (List String)) : N (.html .flow) :=
   el .table .flow segs![nodes (rows.map fun r => el .tr .tableRow segs![nodes (r.map fun c => el .td .tableCell segs![.one (txt c)])])]
 example (items : List (N (.html .listItem))) (caption : Option (N (.html .tableCaption))) :
     N (.html .flow) :=
   el .div .flow segs![.one (el .ul .flow segs![nodes items]),
     .one (el .table .flow segs![Seg.ofOption (Cat.html .tableCaption) caption])]
+
+-- Repetition nested within repetition, as lean-html's `DlGroup` and `RubySegment` build it.
+def dt (s : String) : N (.html .term) := el .dt .term segs![.one (txt s)]
+def dd (s : String) : N (.html .description) := el .dd .description segs![.one (txt s)]
+def rt (s : String) : N (.html .rubyText) := el .rt .rubyText segs![.one (txt s)]
+def rp (s : String) : N (.html .rubyParenthesis) := el .rp .rubyParenthesis segs![.one (txt s)]
+
+/-- One or more terms, then one or more descriptions. -/
+abbrev dlGroup : List (SegK Cat) := [.many1 (.html .term), .many1 (.html .description)]
+
+example (groups : List ((String × List String) × (String × List String))) : N (.html .flow) :=
+  el .dl .flow segs![.groups (Groups.ofList (groups.map fun ((t, ts), (d, ds)) =>
+    (segs![.many1 (dt t) (Nodes.ofList (ts.map dt)), .many1 (dd d) (Nodes.ofList (ds.map dd))] :
+      Segs vocab Unit dlGroup)))]
+
+/-- One or more `rt`, or an opening `rp` and then one or more pairs of `rt` and a closing `rp`. -/
+abbrev rubyText : SegK Cat :=
+  .alt [.many1 (.html .rubyText)]
+    [.one (.html .rubyParenthesis), .one (.html .rubyText), .one (.html .rubyParenthesis),
+      .groups [.one (.html .rubyText), .one (.html .rubyParenthesis)]]
+
+def annotation : (String × List String) ⊕ (String × List String) → Seg vocab Unit rubyText
+  | .inl (t, ts) => .inl segs![.many1 (rt t) (Nodes.ofList (ts.map rt))]
+  | .inr (t, ts) => .inr segs![.one (rp "("), .one (rt t), .one (rp ")"),
+      .groups (Groups.ofList (ts.map fun t => segs![.one (rt t), .one (rp ")")]))]
+
+def base (s : List String) : Seg vocab Unit (.many .text) := .many (Nodes.ofList (s.map txt))
+
+example (first : List String × ((String × List String) ⊕ (String × List String)))
+    (more : List (List String × ((String × List String) ⊕ (String × List String)))) :
+    N (.html .phrasing) :=
+  el .ruby .phrasing segs![base first.1, annotation first.2,
+    .groups (Groups.ofList (more.map fun (b, a) => segs![base b, annotation a]))]
 
 -- Inter-element whitespace may stand among children that are not phrasing content.
 example : N (.html .flow) :=
@@ -422,5 +455,27 @@ is false
 -/
 #guard_msgs in
 example : N (.html .flow) := el .li .flow segs![]
+
+-- descriptions in a group that may be empty
+/--
+error: could not synthesize default value for parameter 'ok' using tactics
+---
+error: <dl> as Cat.html Html.Cat.flow does not admit its children: they end before it is complete
+-/
+#guard_msgs in
+example (groups : List (String × List String)) : N (.html .flow) :=
+  el .dl .flow segs![.groups (Groups.ofList (groups.map fun (t, ds) =>
+    segs![.one (dt t), .many (Nodes.ofList (ds.map dd))]))]
+
+-- a ruby segment whose annotation may be empty
+/--
+error: could not synthesize default value for parameter 'ok' using tactics
+---
+error: <ruby> as Cat.html Html.Cat.phrasing does not admit its children: they end before it is complete
+-/
+#guard_msgs in
+example (segments : List (List String × List String)) : N (.html .phrasing) :=
+  el .ruby .phrasing segs![.one (txt "x"), .one (rt "x"),
+    .groups (Groups.ofList (segments.map fun (b, ts) => segs![base b, .many (Nodes.ofList (ts.map rt))]))]
 
 end HtmlModelTests.ContentModel

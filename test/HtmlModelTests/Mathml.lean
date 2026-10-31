@@ -39,7 +39,7 @@ example : N (.mathml .expr) :=
 -- Pairs of scripts known only at run time.
 example (pairs : List (String × String)) : N (.mathml .expr) :=
   mx .mmultiscripts .expr segs![.one (mi "R"), .groups (Groups.ofList (pairs.map fun (b, p) =>
-    .cons (mi b) (.cons (mi p) .nil)))]
+    segs![.one (mi b), .one (mi p)]))]
 
 -- Tables, and token elements holding HTML phrasing content.
 example : N (.mathml .expr) :=

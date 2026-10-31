@@ -116,17 +116,16 @@ def Node.erase {c : V.Cat} : Node V α c → Tree V α
 def Nodes.erase {c : V.Cat} : Nodes V α c → List (Tree V α)
   | .nil => []
   | .cons n ns => Node.erase n :: Nodes.erase ns
-def Group.erase {cs : List V.Cat} : Group V α cs → List (Tree V α)
+def Groups.erase {ks : List (SegK V.Cat)} : Groups V α ks → List (Tree V α)
   | .nil => []
-  | .cons n g => Node.erase n :: Group.erase g
-def Groups.erase {cs : List V.Cat} : Groups V α cs → List (Tree V α)
-  | .nil => []
-  | .cons g gs => Group.erase g ++ Groups.erase gs
+  | .cons g gs => Segs.erase g ++ Groups.erase gs
 def Seg.erase {k : SegK V.Cat} : Seg V α k → List (Tree V α)
   | .one n | .some n => [Node.erase n]
   | .none => []
   | .many ns => Nodes.erase ns
+  | .many1 n ns => Node.erase n :: Nodes.erase ns
   | .groups gs => Groups.erase gs
+  | .inl xs | .inr xs => Segs.erase xs
   | .ws s _ => [.text s]
 def Segs.erase {ks : List (SegK V.Cat)} : Segs V α ks → List (Tree V α)
   | .nil => []
@@ -199,27 +198,30 @@ private theorem Nodes.matches_erase (ws : Bool) {c : V.Cat} :
     rcases n.letter_erase ws with h | ⟨h, -⟩ <;> rw [h]
     · exact .inl (matches_sym_self c)
     · exact .inr rfl
-private theorem Group.matches_erase (ws : Bool) {cs : List V.Cat} :
-    (g : Group V α cs) →
-      Matches (· == ·) (Regex.seq (cs.map (V.letter ws))) (letters ws (Group.erase g))
-  | .nil => .eps
-  | .cons n g => by
-    simp only [Group.erase, letters_cons, List.map_cons, Regex.seq, List.foldr_cons]
-    exact .cat (matches_letter ws n) (Group.matches_erase ws g)
-private theorem Groups.matches_erase (ws : Bool) {cs : List V.Cat} :
-    (gs : Groups V α cs) →
-      Matches (· == ·) (.star (Regex.seq (cs.map (V.letter ws)))) (letters ws (Groups.erase gs))
+private theorem Groups.matches_erase (ws : Bool) {ks : List (SegK V.Cat)} :
+    (gs : Groups V α ks) → Matches (· == ·) (.star (V.shape ws ks)) (letters ws (Groups.erase gs))
   | .nil => .starNil
   | .cons g gs => by
     simp only [Groups.erase, letters_append]
-    exact .starCons (Group.matches_erase ws g) (Groups.matches_erase ws gs)
+    exact .starCons (Segs.matches_erase ws g) (Groups.matches_erase ws gs)
 private theorem Seg.matches_erase (ws : Bool) {k : SegK V.Cat} :
     (x : Seg V α k) → Matches (· == ·) (V.segShape ws k) (letters ws (Seg.erase x))
   | .one n => by simpa [Seg.erase, Vocabulary.segShape] using matches_letter ws n
   | .none => .altLeft .eps
   | .some n => by simpa [Seg.erase, Vocabulary.segShape] using matches_opt_letter ws n
   | .many ns => Nodes.matches_erase ws ns
+  | .many1 n ns => by
+    simp only [Vocabulary.segShape, Vocabulary.letters1]
+    split
+    · exact Nodes.matches_erase ws (.cons n ns)
+    · rename_i hne
+      rcases n.letter_erase ws with h | ⟨-, rfl, rfl⟩
+      · simp only [Seg.erase, letters_cons, h, Shape.many1, Regex.plus]
+        exact .cat (matches_sym_self _) (Nodes.matches_erase ws ns)
+      · simp at hne
   | .groups gs => Groups.matches_erase ws gs
+  | .inl xs => .altLeft (Segs.matches_erase ws xs)
+  | .inr xs => .altRight (Segs.matches_erase ws xs)
   | .ws s h => by
     simp only [Seg.erase, letters_cons, letters_nil, List.append_nil, letter, h, Bool.and_true,
       Vocabulary.segShape]
@@ -230,8 +232,7 @@ private theorem Segs.matches_erase (ws : Bool) {ks : List (SegK V.Cat)} :
     (xs : Segs V α ks) → Matches (· == ·) (V.shape ws ks) (letters ws (Segs.erase xs))
   | .nil => .eps
   | .cons x xs => by
-    simp only [Segs.erase, letters_append, Vocabulary.shape, List.map_cons, Regex.seq,
-      List.foldr_cons]
+    simp only [Segs.erase, letters_append, Vocabulary.shape]
     exact .cat (Seg.matches_erase ws x) (Segs.matches_erase ws xs)
 end
 
@@ -249,24 +250,23 @@ theorem Nodes.valid_erase {c : V.Cat} : (ns : Nodes V α c) → ∀ t ∈ Nodes.
   | .cons n ns => by
     simp only [Nodes.erase, List.mem_cons, forall_eq_or_imp]
     exact ⟨n.valid_erase, Nodes.valid_erase ns⟩
-theorem Group.valid_erase {cs : List V.Cat} : (g : Group V α cs) → ∀ t ∈ Group.erase g, t.Valid
-  | .nil => nofun
-  | .cons n g => by
-    simp only [Group.erase, List.mem_cons, forall_eq_or_imp]
-    exact ⟨n.valid_erase, Group.valid_erase g⟩
-theorem Groups.valid_erase {cs : List V.Cat} :
-    (gs : Groups V α cs) → ∀ t ∈ Groups.erase gs, t.Valid
+theorem Groups.valid_erase {ks : List (SegK V.Cat)} :
+    (gs : Groups V α ks) → ∀ t ∈ Groups.erase gs, t.Valid
   | .nil => nofun
   | .cons g gs => by
     simp only [Groups.erase, List.mem_append]
     rintro t (h | h)
-    · exact Group.valid_erase g t h
+    · exact Segs.valid_erase g t h
     · exact Groups.valid_erase gs t h
 theorem Seg.valid_erase {k : SegK V.Cat} : (x : Seg V α k) → ∀ t ∈ Seg.erase x, t.Valid
   | .one n | .some n => by simp only [Seg.erase, List.mem_singleton]; rintro t rfl; exact n.valid_erase
   | .none => nofun
   | .many ns => Nodes.valid_erase ns
+  | .many1 n ns => by
+    simp only [Seg.erase, List.mem_cons, forall_eq_or_imp]
+    exact ⟨n.valid_erase, Nodes.valid_erase ns⟩
   | .groups gs => Groups.valid_erase gs
+  | .inl xs | .inr xs => Segs.valid_erase xs
   | .ws _ _ => by simp only [Seg.erase, List.mem_singleton]; rintro t rfl; exact .text
 theorem Segs.valid_erase {ks : List (SegK V.Cat)} : (xs : Segs V α ks) → ∀ t ∈ Segs.erase xs, t.Valid
   | .nil => nofun
@@ -301,21 +301,20 @@ theorem Nodes.erase_map {c : V.Cat} :
     (ns : Nodes V α c) → Nodes.erase (Nodes.map f ns) = (Nodes.erase ns).map (Tree.map f)
   | .nil => rfl
   | .cons n ns => by simp only [Nodes.map, Nodes.erase, List.map_cons, n.erase_map, Nodes.erase_map ns]
-theorem Group.erase_map {cs : List V.Cat} :
-    (g : Group V α cs) → Group.erase (Group.map f g) = (Group.erase g).map (Tree.map f)
-  | .nil => rfl
-  | .cons n g => by simp only [Group.map, Group.erase, List.map_cons, n.erase_map, Group.erase_map g]
-theorem Groups.erase_map {cs : List V.Cat} :
-    (gs : Groups V α cs) → Groups.erase (Groups.map f gs) = (Groups.erase gs).map (Tree.map f)
+theorem Groups.erase_map {ks : List (SegK V.Cat)} :
+    (gs : Groups V α ks) → Groups.erase (Groups.map f gs) = (Groups.erase gs).map (Tree.map f)
   | .nil => rfl
   | .cons g gs => by
-    simp only [Groups.map, Groups.erase, List.map_append, Group.erase_map g, Groups.erase_map gs]
+    simp only [Groups.map, Groups.erase, List.map_append, Segs.erase_map g, Groups.erase_map gs]
 theorem Seg.erase_map {k : SegK V.Cat} :
     (x : Seg V α k) → Seg.erase (Seg.map f x) = (Seg.erase x).map (Tree.map f)
   | .one n | .some n => by simp only [Seg.map, Seg.erase, List.map_cons, List.map_nil, n.erase_map]
   | .none | .ws _ _ => rfl
   | .many ns => Nodes.erase_map ns
+  | .many1 n ns => by
+    simp only [Seg.map, Seg.erase, List.map_cons, n.erase_map, Nodes.erase_map ns]
   | .groups gs => Groups.erase_map gs
+  | .inl xs | .inr xs => Segs.erase_map xs
 theorem Segs.erase_map {ks : List (SegK V.Cat)} :
     (xs : Segs V α ks) → Segs.erase (Segs.map f xs) = (Segs.erase xs).map (Tree.map f)
   | .nil => rfl

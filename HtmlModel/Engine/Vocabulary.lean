@@ -14,14 +14,17 @@ namespace HtmlModel
 open Regular
 
 /-- What is known at compile time about a run of an element's children: one node, an optional
-node, a list of unknown length, a list of unknown length of fixed groups, or whitespace. -/
+node, a list of unknown length, a nonempty list, a list of unknown length of groups each made of
+segments, a choice between two runs of segments, or whitespace. -/
 inductive SegK (C : Type) where
   | one (c : C)
   | opt (c : C)
   | many (c : C)
-  | groups (cs : List C)
+  | many1 (c : C)
+  | groups (ks : List (SegK C))
+  | alt (l r : List (SegK C))
   | ws
-  deriving DecidableEq, Repr
+  deriving Repr
 
 /-- An element's content model: a grammar over the categories of its children, and whether
 whitespace may stand between them without counting as text. -/
@@ -59,16 +62,27 @@ whitespace-only one is then inter-element whitespace and drops out of the childr
 def letter (ws : Bool) (c : V.Cat) : Regex V.Cat :=
   if ws && c == V.text then Shape.opt c else Shape.one c
 
+/-- Children of category `c`, one or more. Where whitespace is admitted, text ones may all drop
+out, as for `letter`. -/
+def letters1 (ws : Bool) (c : V.Cat) : Regex V.Cat :=
+  if ws && c == V.text then Shape.many c else Shape.many1 c
+
+mutual
 /-- Whitespace drops out where it is admitted, and is text elsewhere. -/
 def segShape (ws : Bool) : SegK V.Cat → Regex V.Cat
   | .one c => V.letter ws c
   | .opt c => Shape.opt c
   | .many c => Shape.many c
-  | .groups cs => .star (Regex.seq (cs.map (V.letter ws)))
+  | .many1 c => V.letters1 ws c
+  | .groups ks => .star (shape ws ks)
+  | .alt l r => .alt (shape ws l) (shape ws r)
   | .ws => if ws then .eps else Shape.one V.text
 
-def shape (ws : Bool) (ks : List (SegK V.Cat)) : Regex V.Cat :=
-  Regex.seq (ks.map (V.segShape ws))
+/-- `Regex.seq` of each segment's shape, written out so that it recurses with `segShape`. -/
+def shape (ws : Bool) : List (SegK V.Cat) → Regex V.Cat
+  | [] => .eps
+  | k :: ks => .cat (segShape ws k) (shape ws ks)
+end
 
 /-- Children of these kinds are valid in element `e` of category `c`. -/
 def Admits (e : V.Elem) (c : V.Cat) (ks : List (SegK V.Cat)) : Prop :=

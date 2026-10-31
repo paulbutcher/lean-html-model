@@ -14,7 +14,7 @@ namespace HtmlModel
 variable (V : Vocabulary)
 
 -- The kernel rejects `List` or `Option` nested over a family indexed by category, so lists,
--- options and groups of nodes have types of their own.
+-- options and groups of segments have types of their own.
 mutual
 /-- A node valid where category `c` is, carrying a payload of type `α` on each element. -/
 inductive Node (α : Type) : V.Cat → Type where
@@ -31,18 +31,18 @@ inductive Node (α : Type) : V.Cat → Type where
 inductive Nodes (α : Type) : V.Cat → Type where
   | nil {c : V.Cat} : Nodes α c
   | cons {c : V.Cat} (n : Node α c) (ns : Nodes α c) : Nodes α c
-inductive Group (α : Type) : List V.Cat → Type where
-  | nil : Group α []
-  | cons {c : V.Cat} {cs : List V.Cat} (n : Node α c) (g : Group α cs) : Group α (c :: cs)
-inductive Groups (α : Type) : List V.Cat → Type where
-  | nil {cs : List V.Cat} : Groups α cs
-  | cons {cs : List V.Cat} (g : Group α cs) (gs : Groups α cs) : Groups α cs
+inductive Groups (α : Type) : List (SegK V.Cat) → Type where
+  | nil {ks : List (SegK V.Cat)} : Groups α ks
+  | cons {ks : List (SegK V.Cat)} (g : Segs α ks) (gs : Groups α ks) : Groups α ks
 inductive Seg (α : Type) : SegK V.Cat → Type where
   | one {c : V.Cat} (n : Node α c) : Seg α (.one c)
   | none {c : V.Cat} : Seg α (.opt c)
   | some {c : V.Cat} (n : Node α c) : Seg α (.opt c)
   | many {c : V.Cat} (ns : Nodes α c) : Seg α (.many c)
-  | groups {cs : List V.Cat} (gs : Groups α cs) : Seg α (.groups cs)
+  | many1 {c : V.Cat} (n : Node α c) (ns : Nodes α c) : Seg α (.many1 c)
+  | groups {ks : List (SegK V.Cat)} (gs : Groups α ks) : Seg α (.groups ks)
+  | inl {l r : List (SegK V.Cat)} (xs : Segs α l) : Seg α (.alt l r)
+  | inr {l r : List (SegK V.Cat)} (xs : Segs α r) : Seg α (.alt l r)
   | ws (s : String) (h : isWhitespace s = true := by decide +kernel) : Seg α .ws
 inductive Segs (α : Type) : List (SegK V.Cat) → Type where
   | nil : Segs α []
@@ -63,7 +63,7 @@ def Nodes.ofList {α : Type} {c : V.Cat} : List (Node V α c) → Nodes V α c
   | [] => .nil
   | n :: ns => .cons n (Nodes.ofList ns)
 
-def Groups.ofList {α : Type} {cs : List V.Cat} : List (Group V α cs) → Groups V α cs
+def Groups.ofList {α : Type} {ks : List (SegK V.Cat)} : List (Segs V α ks) → Groups V α ks
   | [] => .nil
   | g :: gs => .cons g (Groups.ofList gs)
 
@@ -110,18 +110,18 @@ def Node.map (f : α → β) {c : V.Cat} : Node V α c → Node V β c
 def Nodes.map (f : α → β) {c : V.Cat} : Nodes V α c → Nodes V β c
   | .nil => .nil
   | .cons n ns => .cons (Node.map f n) (Nodes.map f ns)
-def Group.map (f : α → β) {cs : List V.Cat} : Group V α cs → Group V β cs
+def Groups.map (f : α → β) {ks : List (SegK V.Cat)} : Groups V α ks → Groups V β ks
   | .nil => .nil
-  | .cons n g => .cons (Node.map f n) (Group.map f g)
-def Groups.map (f : α → β) {cs : List V.Cat} : Groups V α cs → Groups V β cs
-  | .nil => .nil
-  | .cons g gs => .cons (Group.map f g) (Groups.map f gs)
+  | .cons g gs => .cons (Segs.map f g) (Groups.map f gs)
 def Seg.map (f : α → β) {k : SegK V.Cat} : Seg V α k → Seg V β k
   | .one n => .one (Node.map f n)
   | .none => .none
   | .some n => .some (Node.map f n)
   | .many ns => .many (Nodes.map f ns)
+  | .many1 n ns => .many1 (Node.map f n) (Nodes.map f ns)
   | .groups gs => .groups (Groups.map f gs)
+  | .inl xs => .inl (Segs.map f xs)
+  | .inr xs => .inr (Segs.map f xs)
   | .ws s h => .ws s h
 def Segs.map (f : α → β) {ks : List (SegK V.Cat)} : Segs V α ks → Segs V β ks
   | .nil => .nil
@@ -139,17 +139,16 @@ theorem Node.map_id {c : V.Cat} : (n : Node V α c) → Node.map id n = n
 theorem Nodes.map_id {c : V.Cat} : (ns : Nodes V α c) → Nodes.map id ns = ns
   | .nil => rfl
   | .cons n ns => by simp only [Nodes.map, Node.map_id n, Nodes.map_id ns]
-theorem Group.map_id {cs : List V.Cat} : (g : Group V α cs) → Group.map id g = g
+theorem Groups.map_id {ks : List (SegK V.Cat)} : (gs : Groups V α ks) → Groups.map id gs = gs
   | .nil => rfl
-  | .cons n g => by simp only [Group.map, Node.map_id n, Group.map_id g]
-theorem Groups.map_id {cs : List V.Cat} : (gs : Groups V α cs) → Groups.map id gs = gs
-  | .nil => rfl
-  | .cons g gs => by simp only [Groups.map, Group.map_id g, Groups.map_id gs]
+  | .cons g gs => by simp only [Groups.map, Segs.map_id g, Groups.map_id gs]
 theorem Seg.map_id {k : SegK V.Cat} : (x : Seg V α k) → Seg.map id x = x
   | .one n | .some n => by simp only [Seg.map, Node.map_id n]
   | .none | .ws _ _ => rfl
   | .many ns => by simp only [Seg.map, Nodes.map_id ns]
+  | .many1 n ns => by simp only [Seg.map, Node.map_id n, Nodes.map_id ns]
   | .groups gs => by simp only [Seg.map, Groups.map_id gs]
+  | .inl xs | .inr xs => by simp only [Seg.map, Segs.map_id xs]
 theorem Segs.map_id {ks : List (SegK V.Cat)} : (xs : Segs V α ks) → Segs.map id xs = xs
   | .nil => rfl
   | .cons x xs => by simp only [Segs.map, Seg.map_id x, Segs.map_id xs]
@@ -169,19 +168,17 @@ theorem Nodes.map_comp {c : V.Cat} :
     (ns : Nodes V α c) → Nodes.map (g ∘ f) ns = Nodes.map g (Nodes.map f ns)
   | .nil => rfl
   | .cons n ns => by simp only [Nodes.map, Node.map_comp n, Nodes.map_comp ns]
-theorem Group.map_comp {cs : List V.Cat} :
-    (x : Group V α cs) → Group.map (g ∘ f) x = Group.map g (Group.map f x)
+theorem Groups.map_comp {ks : List (SegK V.Cat)} :
+    (gs : Groups V α ks) → Groups.map (g ∘ f) gs = Groups.map g (Groups.map f gs)
   | .nil => rfl
-  | .cons n x => by simp only [Group.map, Node.map_comp n, Group.map_comp x]
-theorem Groups.map_comp {cs : List V.Cat} :
-    (gs : Groups V α cs) → Groups.map (g ∘ f) gs = Groups.map g (Groups.map f gs)
-  | .nil => rfl
-  | .cons x gs => by simp only [Groups.map, Group.map_comp x, Groups.map_comp gs]
+  | .cons x gs => by simp only [Groups.map, Segs.map_comp x, Groups.map_comp gs]
 theorem Seg.map_comp {k : SegK V.Cat} : (x : Seg V α k) → Seg.map (g ∘ f) x = Seg.map g (Seg.map f x)
   | .one n | .some n => by simp only [Seg.map, Node.map_comp n]
   | .none | .ws _ _ => rfl
   | .many ns => by simp only [Seg.map, Nodes.map_comp ns]
+  | .many1 n ns => by simp only [Seg.map, Node.map_comp n, Nodes.map_comp ns]
   | .groups gs => by simp only [Seg.map, Groups.map_comp gs]
+  | .inl xs | .inr xs => by simp only [Seg.map, Segs.map_comp xs]
 theorem Segs.map_comp {ks : List (SegK V.Cat)} :
     (xs : Segs V α ks) → Segs.map (g ∘ f) xs = Segs.map g (Segs.map f xs)
   | .nil => rfl
