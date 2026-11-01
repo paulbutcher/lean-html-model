@@ -19,7 +19,7 @@ example : N (.html .paragraph) :=
   el .p .paragraph segs![.one (txt "Thus "), .one (inlineMath segs![
     .one (mx .msup .expr segs![
       .one (mx .mrow .expr segs![.one (mo "("), .one (mn "1"), .one (mo "+"),
-        .one (mx .mfrac .expr segs![.one (mn "2"), .ws " ", .one (mn "3")]), .one (mo ")")]),
+        .one (mx .mfrac .expr segs![.one (mn "2"), .one (ws " "), .one (mn "3")]), .one (mo ")")]),
       .one (mn "5")])])]
 
 -- The fixed arities.

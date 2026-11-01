@@ -15,3 +15,6 @@ import HtmlModelTests.Svg
 import HtmlModelTests.Mathml
 import HtmlModelTests.Lasm
 import HtmlModelTests.Readme
+import HtmlModelTests.LeanHtml
+import HtmlModelTests.LasmTerms
+import HtmlModelTests.Footprint

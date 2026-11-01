@@ -20,7 +20,7 @@ inductive Raw where
   | elem (ns : Namespace) (tag : String) (children : List Raw)
   deriving BEq, Repr
 
-abbrev Placed := (k : SegK Cat) × Seg vocab Unit k
+abbrev Placed := (k : SegK Cat) × Seg vocab.sig Unit k
 
 def Placed.cat : Placed → Cat
   | ⟨.one c, _⟩ => c
@@ -43,7 +43,7 @@ mutual
 /-- Whitespace becomes a whitespace segment, so that it may stand where text may not. An element
 tries each category that fits its parent, keeping the least that admits its children. -/
 def place (parent : Regex Cat) : Raw → Option Placed
-  | .text s => if h : isWhitespace s = true then some ⟨.ws, .ws s h⟩ else some ⟨.one .text, .one (.text s)⟩
+  | .text s => if h : isWhitespace s = true then some ⟨.one .ws, .one (.ws s h)⟩ else some ⟨.one .text, .one (.text s)⟩
   | .elem ns tag ch =>
     match elemOf? ns tag with
     | none => none

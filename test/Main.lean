@@ -28,7 +28,7 @@ structure Key where
 
 def keys : List Key := [
   ⟨"kDiv", "div", "flow", ".many (.html .flow)"⟩,
-  ⟨"kSection", "div", "flow", ".ws, .one (.html .paragraph), .one (.html .flow), .one (.html .flow)"⟩,
+  ⟨"kSection", "div", "flow", ".one .ws, .one (.html .paragraph), .one (.html .flow), .one (.html .flow)"⟩,
   ⟨"kP1", "p", "paragraph", ".one .text, .one (.html .phrasing), .one (.html .phrasing)"⟩,
   ⟨"kP2", "p", "paragraph", ".one .text"⟩,
   ⟨"kSpan", "span", "phrasing", ".one .text"⟩,
@@ -37,7 +37,7 @@ def keys : List Key := [
   ⟨"kLi", "li", "listItem", ".one (.html .paragraph)"⟩,
   ⟨"kTable", "table", "flow", ".one (.html .tableBody)"⟩,
   ⟨"kTbody", "tbody", "tableBody", ".many (.html .tableRow)"⟩,
-  ⟨"kTr", "tr", "tableRow", ".ws, .one (.html .tableCell), .one (.html .tableCell)"⟩,
+  ⟨"kTr", "tr", "tableRow", ".one .ws, .one (.html .tableCell), .one (.html .tableCell)"⟩,
   ⟨"kTd", "td", "tableCell", ".one .text"⟩,
   ⟨"kScript", "script", "scriptSupporting", ""⟩]
 
@@ -56,8 +56,8 @@ def section_ (cached : Bool) (i : Nat) : String :=
     el "kLi" s!".one ({el "kP2" s!".one (txt \"item {j}\")"})")
   let td (s : String) := el "kTd" s!".one (txt \"{s}\")"
   let trs := ", ".intercalate ((List.range 2).map fun _ =>
-    el "kTr" s!".ws \"\\n\", .one ({td "a"}), .one ({td "b"})")
-  el "kSection" (s!".ws \"\\n\",\n    " ++
+    el "kTr" s!".one (ws \"\\n\"), .one ({td "a"}), .one ({td "b"})")
+  el "kSection" (s!".one (ws \"\\n\"),\n    " ++
     s!".one ({el "kP1" s!".one (txt \"Section {i} \"), .one ({el "kSpan" ".one (txt \"x\")"}), .one ({el "kA" ".one (txt \"link\")"})"}),\n    " ++
     s!".one ({el "kUl" s!"nodes [{lis}], .one ({el "kScript" ""})"}),\n    " ++
     s!".one ({el "kTable" s!".one ({el "kTbody" s!"nodes [{trs}]"})"})")
@@ -78,7 +78,7 @@ def mixedSection (i : Nat) : String :=
   ".one (inlineMath segs![.one (mx .mrow .expr segs![.one (mx .mi .expr segs![.one (txt \"x\")]), " ++
   ".one (mx .mo .expr segs![.one (txt \"=\")]), .one (mx .mfrac .expr segs![.one (mx .mn .expr segs![.one (txt \"1\")]), " ++
   ".one (mx .mn .expr segs![.one (txt \"2\")])])])])]), " ++
-  ".one (inlineSvg segs![.ws \"\\n\", " ++
+  ".one (inlineSvg segs![.one (ws \"\\n\"), " ++
   ".one (sv .defs segs![.one (sv .linearGradient segs![.one (sv .stop segs![]), .one (sv .stop segs![])]), " ++
   ".one (sv .filter segs![.one (sv .feGaussianBlur segs![]), .one (sv .feOffset segs![]), " ++
   ".one (sv .feMerge segs![.one (sv .feMergeNode segs![]), .one (sv .feMergeNode segs![])])])]), " ++

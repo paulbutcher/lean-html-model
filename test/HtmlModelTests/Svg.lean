@@ -17,8 +17,8 @@ example : N (.svg (.el .g)) := sv .g segs![.one (sv .svg segs![.one (sv .rect se
 
 -- After the specifications' examples: a gradient-filled rectangle with a title.
 example : N (.html .phrasing) :=
-  inlineSvg segs![.ws "\n",
-    .one (sv .defs segs![.one (sv .linearGradient segs![.one (sv .stop segs![]), .ws "\n", .one (sv .stop segs![])])]),
+  inlineSvg segs![.one (ws "\n"),
+    .one (sv .defs segs![.one (sv .linearGradient segs![.one (sv .stop segs![]), .one (ws "\n"), .one (sv .stop segs![])])]),
     .one (sv .rect segs![.one (sv .title segs![.one (txt "A box")])])]
 
 -- Text, character data mixed with text content child elements.
@@ -224,5 +224,7 @@ example : (sv .rect segs![]).erase.isInline = false := by decide +kernel
 example : (sv .text segs![]).erase.keepsWhitespace = true := by decide +kernel
 example : (sv .g segs![]).erase.keepsWhitespace = false := by decide +kernel
 example : (inlineSvg segs![]).erase.isInline = true := by decide +kernel
+
+example : N (.svg (.el .g)) := sv .g segs![.one (sv .discard segs![.one (sv .desc segs![])])]
 
 end HtmlModelTests.Svg

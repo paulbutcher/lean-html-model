@@ -21,10 +21,11 @@ example : vocab.infer (.html .a) [.one (.html .paragraph)] (grammarOf .div .flow
 example : vocab.infer (.html .a) [.one (.html .paragraph)] (grammarOf .p .paragraph) = none := by
   decide +kernel
 
--- `link`, `source` and `noscript` take their category from their parent.
-example : vocab.infer (.html .link) [] (grammarOf .head .head) = some (.html .metadata) := by decide +kernel
-example : vocab.infer (.html .link) [] (grammarOf .body .body) = some (.html .phrasing) := by decide +kernel
-example : vocab.infer (.html .link) [] (grammarOf .noscript .metadata) = some (.html .noscriptMetadata) := by
+-- `source` and `noscript` take their category from their parent; `link` has one, which widens to
+-- both head and body content.
+example : vocab.infer (.html .link) [] (grammarOf .head .head) = some (.html .phrasingMetadata) := by
+  decide +kernel
+example : vocab.infer (.html .link) [] (grammarOf .body .body) = some (.html .phrasingMetadata) := by
   decide +kernel
 example : vocab.infer (.html .source) [] (grammarOf .picture .phrasing) = some (.html .pictureSource) := by
   decide +kernel

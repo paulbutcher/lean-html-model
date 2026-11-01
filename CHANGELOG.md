@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0] - 2026-11-01
+
+* Breaking: a node widens to any category it is valid wherever, keeping the category it was checked as, so that a list known only at run time may mix categories
+* Breaking: each mixture a content model admits in any number, such as list items and script-supporting elements, is a category its members widen to
+* Breaking: inter-element whitespace is a node of its own category, replacing the whitespace segment, and widens only to categories that never fill a required position
+* Breaking: nodes and trees are built on a `Signature` derived from the vocabulary, so that building and erasing a tree reaches none of its tables or grammars at run time
+* Breaking: custom elements' content models are declared by the vocabulary, `Web.vocabWith`, and an undeclared one takes the standard's transparent content model
+* Breaking: `link` and `meta` take one category, which widens to metadata and phrasing content
+* SVG's `discard` element
+
 ## [0.2.0] - 2026-10-31
 
 * Requires lean-regular 0.2.0

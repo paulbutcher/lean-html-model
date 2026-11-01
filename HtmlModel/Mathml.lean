@@ -45,7 +45,22 @@ inductive Cat where
   | annotationXmlHtml
   /-- `annotation-xml` holding anything else, such as content MathML or SVG. -/
   | annotationXml
+  /-- Any of the three annotations, which `semantics` holds after its expression. -/
+  | annotations
+  /-- An expression or an `svg`, which an `annotation-xml` that is not HTML holds. -/
+  | annotationXmlContent
   deriving DecidableEq, Repr
+
+def Cat.all : List Cat :=
+  [.expr, .prescripts, .row, .cell, .annotation, .annotationXmlHtml, .annotationXml, .annotations,
+    .annotationXmlContent]
+
+theorem Cat.mem_all (c : Cat) : c ∈ Cat.all := by cases c <;> decide
+
+def Cat.above : Cat → List Cat
+  | .expr => [.annotationXmlContent]
+  | .annotation | .annotationXmlHtml | .annotationXml => [.annotations]
+  | _ => []
 
 def Elem.cats : Elem → List Cat
   | .mprescripts => [.prescripts]

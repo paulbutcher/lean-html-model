@@ -70,30 +70,80 @@ def Elem.ofName? (name : String) : Option Elem := Elem.all.find? (·.name == nam
 
 /-- Besides flow and phrasing content, there is a category for each element whose parent fixes
 where it may appear, and for each narrowing of flow or phrasing content that some parent demands
-exactly (`heading`, `paragraph`, `image`). -/
+exactly (`heading`, `paragraph`, `image`). Where a content model admits a mixture, such as `ul`'s
+list items and script-supporting elements, the mixture is a category of its own, which its members
+widen to, so that a list of children known only at run time has one category. -/
 inductive Cat where
   | flow | phrasing | phrasingOrHeading | heading | headingGroup | paragraph | image
-  | metadata | noscriptMetadata | title | base | document | head | body
+  | metadata | noscriptMetadata
+  /-- `link` and `meta`: metadata, and phrasing content where an attribute allows them in the
+  body, which is not modelled. -/
+  | phrasingMetadata
+  | title | base | document | head | body
   | listItem | term | description | descriptionGroup | figureCaption | summary | legend
-  | source | pictureSource | track | rubyText | rubyParenthesis | option | selectChild
+  | source | pictureSource | track | rubyText | rubyParenthesis | option
+  /-- `option`, `optgroup`, and script-supporting elements, in a `select`. -/
+  | selectChild
   | tableCaption | tableColumnGroup | tableColumn | tableHead | tableBody | tableFoot | tableRow
   | tableCell
   /-- `script`, and with `template`, whatever a script-supporting element may stand among. -/
   | scriptSupporting
   /-- `template`, which `colgroup` admits and `script` it does not. -/
   | template
+  | listItemOrScript | termOrScript | descriptionOrScript | descriptionGroupOrScript
+  | paragraphOrScript | pictureSourceOrScript | optionOrScript | tableColumnGroupOrScript
+  | tableBodyOrScript | tableRowOrScript | tableCellOrScript | tableColumnOrTemplate
   deriving DecidableEq, Repr
+
+def Cat.all : List Cat :=
+  [.flow, .phrasing, .phrasingOrHeading, .heading, .headingGroup, .paragraph, .image, .metadata,
+    .noscriptMetadata, .phrasingMetadata, .title, .base, .document, .head, .body, .listItem, .term,
+    .description, .descriptionGroup, .figureCaption, .summary, .legend, .source, .pictureSource,
+    .track, .rubyText, .rubyParenthesis, .option, .selectChild, .tableCaption, .tableColumnGroup,
+    .tableColumn, .tableHead, .tableBody, .tableFoot, .tableRow, .tableCell, .scriptSupporting,
+    .template, .listItemOrScript, .termOrScript, .descriptionOrScript, .descriptionGroupOrScript,
+    .paragraphOrScript, .pictureSourceOrScript, .optionOrScript, .tableColumnGroupOrScript,
+    .tableBodyOrScript, .tableRowOrScript, .tableCellOrScript, .tableColumnOrTemplate]
+
+theorem Cat.mem_all (c : Cat) : c ∈ Cat.all := by cases c <;> decide
+
+/-- What script-supporting elements may stand among, besides flow, phrasing and metadata content. -/
+def Cat.scriptMixtures : List Cat :=
+  [.selectChild, .listItemOrScript, .termOrScript, .descriptionOrScript, .descriptionGroupOrScript,
+    .paragraphOrScript, .pictureSourceOrScript, .optionOrScript, .tableColumnGroupOrScript,
+    .tableBodyOrScript, .tableRowOrScript, .tableCellOrScript]
 
 /-- Every category `c` is valid wherever, transitively. -/
 def Cat.above : Cat → List Cat
   | .phrasing => [.flow, .phrasingOrHeading]
   | .heading | .headingGroup => [.flow, .phrasingOrHeading]
-  | .paragraph => [.flow]
+  | .paragraph => [.flow, .paragraphOrScript]
   | .image => [.phrasing, .flow, .phrasingOrHeading]
-  | .option => [.selectChild]
-  | .scriptSupporting => [.metadata, .phrasing, .flow, .phrasingOrHeading]
-  | .template => [.scriptSupporting, .metadata, .phrasing, .flow, .phrasingOrHeading]
+  | .noscriptMetadata => [.metadata]
+  | .phrasingMetadata => [.noscriptMetadata, .metadata, .phrasing, .flow, .phrasingOrHeading]
+  | .listItem => [.listItemOrScript]
+  | .term => [.termOrScript]
+  | .description => [.descriptionOrScript]
+  | .descriptionGroup => [.descriptionGroupOrScript]
+  | .pictureSource => [.pictureSourceOrScript]
+  | .option => [.selectChild, .optionOrScript]
+  | .tableColumnGroup => [.tableColumnGroupOrScript]
+  | .tableColumn => [.tableColumnOrTemplate]
+  | .tableBody => [.tableBodyOrScript]
+  | .tableRow => [.tableRowOrScript]
+  | .tableCell => [.tableCellOrScript]
+  | .scriptSupporting => [.metadata, .phrasing, .flow, .phrasingOrHeading] ++ Cat.scriptMixtures
+  | .template =>
+    [.scriptSupporting, .metadata, .phrasing, .flow, .phrasingOrHeading, .tableColumnOrTemplate] ++
+      Cat.scriptMixtures
   | _ => []
+
+/-- The categories inter-element whitespace widens to: those that stand only where whitespace may,
+never one that also fills a required position, where whitespace would stand in for the element
+required. -/
+def Cat.whitespace : List Cat :=
+  [.phrasing, .flow, .phrasingOrHeading, .metadata, .noscriptMetadata, .source, .track,
+    .scriptSupporting, .tableColumnOrTemplate] ++ Cat.scriptMixtures
 
 /-- The categories an element may take. One taking several takes its content model from the
 context it is placed in, as a transparent element does. -/
@@ -103,8 +153,8 @@ def Elem.cats : Elem → List Cat
   | .body => [.body]
   | .title => [.title]
   | .base => [.base]
-  | .link | .meta => [.metadata, .noscriptMetadata, .phrasing]
-  | .style => [.metadata, .noscriptMetadata]
+  | .link | .meta => [.phrasingMetadata]
+  | .style => [.noscriptMetadata]
   | .script => [.scriptSupporting]
   | .template => [.template]
   | .noscript => [.metadata, .phrasing, .flow]
@@ -143,10 +193,11 @@ def Elem.cats : Elem → List Cat
   | .details | .dialog | .table => [.flow]
 
 /-- Whether content of this category lays out inline. `rt` and `rp` count, since whitespace between
-them and the base text would render inside the ruby; so do script-supporting elements, which may
-stand among phrasing content. -/
+them and the base text would render inside the ruby; so do script-supporting elements, `link`, and
+`meta`, which may stand among phrasing content. -/
 def Cat.isInline : Cat → Bool
-  | .phrasing | .image | .rubyText | .rubyParenthesis | .scriptSupporting | .template => true
+  | .phrasing | .image | .rubyText | .rubyParenthesis | .scriptSupporting | .template
+  | .phrasingMetadata => true
   | _ => false
 
 /-- An element that takes the content model of its context, so that it lays out inline when all

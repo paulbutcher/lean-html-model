@@ -8,40 +8,11 @@ import HtmlModelTests.Helpers
 
 namespace HtmlModelTests.Vocabulary
 
-open HtmlModel Web
+open HtmlModel Web Regular
 
 theorem Html.Elem.mem_all (e : Html.Elem) : e ∈ Html.Elem.all := by cases e <;> decide
 
 theorem Html.Elem.ofName?_name : Html.Elem.all.all (fun e => Html.Elem.ofName? e.name == some e) := by
-  decide +kernel
-
-def allCats : List Cat :=
-  .text :: .any ::
-  (([.expr, .prescripts, .row, .cell, .annotation, .annotationXmlHtml, .annotationXml] : List Mathml.Cat).map .mathml) ++
-  (Svg.Elem.all.map (Cat.svg ∘ .el)) ++
-  ([.animation, .descriptive, .paintServer, .gradient, .shape, .structural, .textContentChild,
-    .filterPrimitive, .transferFunction, .lightSource] : List Svg.Group).map (Cat.svg ∘ .group) ++
-  [.svg .aContainer, .svg .aText, .svg .aTspan, .svg .aTextPath] ++ ([.flow, .phrasing, .phrasingOrHeading, .heading, .headingGroup, .paragraph, .image,
-    .metadata, .noscriptMetadata, .title, .base, .document, .head, .body, .listItem, .term,
-    .description, .descriptionGroup, .figureCaption, .summary, .legend, .source, .pictureSource,
-    .track, .rubyText, .rubyParenthesis, .option, .selectChild, .tableCaption, .tableColumnGroup,
-    .tableColumn, .tableHead, .tableBody, .tableFoot, .tableRow, .tableCell, .scriptSupporting,
-    .template] : List Html.Cat).map .html
-
-theorem mem_allCats (c : Cat) : c ∈ allCats := by
-  rcases c with _ | c | c | c | _
-  · decide
-  · cases c <;> decide
-  · rcases c with e | g | _ | _ | _ | _
-    · cases e <;> decide
-    · cases g <;> decide
-    all_goals decide
-  · cases c <;> decide
-  · decide
-
--- `above` is transitively closed, so that `widens` is a preorder.
-theorem above_closed :
-    allCats.all (fun c => (Cat.above c).all fun d => (Cat.above d).all ((Cat.above c).contains ·)) := by
   decide +kernel
 
 theorem Svg.Elem.mem_all (e : Svg.Elem) : e ∈ Svg.Elem.all := by cases e <;> decide
@@ -57,5 +28,43 @@ theorem Mathml.Elem.ofName?_name :
 
 -- Every element takes some category, and has a content model at each.
 theorem cats_nonempty : Html.Elem.all.all (fun e => !e.cats.isEmpty) := by decide +kernel
+def elems : List Elem :=
+  Html.Elem.all.map .html ++ Svg.Elem.all.map .svg ++ Mathml.Elem.all.map .mathml
+
+def specs : List (Spec Cat) := elems.flatMap fun e => (vocab.cats e).map (vocab.spec e)
+
+mutual
+/-- The symbols outside any repetition, each of which fills a position some word must fill. -/
+def unrepeated : Regex Cat → List Cat
+  | .sym c => [c]
+  | .cat r s | .alt r s | .interleave r s => unrepeated r ++ unrepeated s
+  | .nonEmpty r => unrepeated r
+  | .allOf rs => unrepeatedAll rs
+  | .empty | .eps | .star _ => []
+def unrepeatedAll : List (Regex Cat) → List Cat
+  | [] => []
+  | r :: rs => unrepeated r ++ unrepeatedAll rs
+end
+
+/-- Whether `c` stands somewhere, and only repeated where whitespace may stand, as inter-element
+whitespace or as text. -/
+def onlyWhereWhitespace (c : Cat) : Bool :=
+  specs.any (·.grammar.letters.contains c) &&
+    specs.all fun sp => !sp.grammar.letters.contains c ||
+      (!(unrepeated sp.grammar).contains c && (sp.ws || vocab.widens .text c))
+
+-- Whitespace widens to exactly those categories, so that it never stands in for a required child.
+theorem ws_widens_exactly :
+    Cat.all.all (fun c => c == .ws || vocab.widens .ws c == onlyWhereWhitespace c) := by
+  decide +kernel
+
+/-- Whether no repetition is of a choice, so that each run of children has one category. -/
+def repeatsOne : Regex Cat → Bool
+  | .star (.alt _ _) => false
+  | .star r | .nonEmpty r => repeatsOne r
+  | .cat r s | .alt r s | .interleave r s => repeatsOne r && repeatsOne s
+  | _ => true
+
+theorem lists_have_one_category : specs.all (repeatsOne ·.grammar) := by decide +kernel
 
 end HtmlModelTests.Vocabulary

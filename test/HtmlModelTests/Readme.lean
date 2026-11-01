@@ -14,7 +14,7 @@ namespace HtmlModelTests.Readme
 open HtmlModel Web
 
 /-- An HTML element with no payload. -/
-abbrev el (e : Html.Elem) (c : Html.Cat) {ks : List (SegK Cat)} (segs : Segs vocab Unit ks)
+abbrev el (e : Html.Elem) (c : Html.Cat) {ks : List (SegK Cat)} (segs : Segs vocab.sig Unit ks)
     (hc : Cat.html c ∈ vocab.cats (.html e) := by decide +kernel)
     (ok : vocab.Admits (.html e) (.html c) ks := by admits) : Web.Node Unit (.html c) :=
   Web.elem (.html e) (.html c) () segs hc ok
@@ -23,8 +23,12 @@ def txt (s : String) : Web.Node Unit .text := .text s
 
 /-- A list whose items are known only at run time, after inter-element whitespace. -/
 def list (items : List String) : Web.Node Unit (.html .flow) :=
-  el .ul .flow segs![.ws "\n",
+  el .ul .flow segs![.one (ws "\n"),
     .many (Nodes.ofList (items.map fun i => el .li .listItem segs![.one (txt i)]))]
+
+/-- Flow content of several categories, as a list known only at run time holds it. -/
+def article (paras : List String) : List (Web.Node Unit (.html .flow)) :=
+  Web.widen (el .h1 .heading segs![.one (txt "Title")]) :: paras.map fun s => Web.widen (txt s)
 
 /--
 error: could not synthesize default value for parameter 'ok' using tactics

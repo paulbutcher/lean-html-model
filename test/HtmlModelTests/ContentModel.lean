@@ -60,7 +60,7 @@ example : N (.html .flow) :=
 -- In `<head>`, a `<noscript>` holds `link` and `meta`; in `<body>`, flow content.
 example : N (.html .document) :=
   el .html .document segs![
-    .one (el .head .head segs![.one (el .noscript .metadata segs![.one (el .link .noscriptMetadata segs![])]),
+    .one (el .head .head segs![.one (el .noscript .metadata segs![.one (el .link .phrasingMetadata segs![])]),
       .one (el .title .title segs![.one (txt "T")])]),
     .one (el .body .body segs![.one (el .noscript .flow segs![.one (txt "Enable scripts")])])]
 
@@ -87,7 +87,7 @@ abbrev dlGroup : List (SegK Cat) := [.many1 (.html .term), .many1 (.html .descri
 example (groups : List ((String × List String) × (String × List String))) : N (.html .flow) :=
   el .dl .flow segs![.groups (Groups.ofList (groups.map fun ((t, ts), (d, ds)) =>
     (segs![.many1 (dt t) (Nodes.ofList (ts.map dt)), .many1 (dd d) (Nodes.ofList (ds.map dd))] :
-      Segs vocab Unit dlGroup)))]
+      Segs vocab.sig Unit dlGroup)))]
 
 /-- One or more `rt`, or an opening `rp` and then one or more pairs of `rt` and a closing `rp`. -/
 abbrev rubyText : SegK Cat :=
@@ -95,12 +95,12 @@ abbrev rubyText : SegK Cat :=
     [.one (.html .rubyParenthesis), .one (.html .rubyText), .one (.html .rubyParenthesis),
       .groups [.one (.html .rubyText), .one (.html .rubyParenthesis)]]
 
-def annotation : (String × List String) ⊕ (String × List String) → Seg vocab Unit rubyText
+def annotation : (String × List String) ⊕ (String × List String) → Seg vocab.sig Unit rubyText
   | .inl (t, ts) => .inl segs![.many1 (rt t) (Nodes.ofList (ts.map rt))]
   | .inr (t, ts) => .inr segs![.one (rp "("), .one (rt t), .one (rp ")"),
       .groups (Groups.ofList (ts.map fun t => segs![.one (rt t), .one (rp ")")]))]
 
-def base (s : List String) : Seg vocab Unit (.many .text) := .many (Nodes.ofList (s.map txt))
+def base (s : List String) : Seg vocab.sig Unit (.many .text) := .many (Nodes.ofList (s.map txt))
 
 example (first : List String × ((String × List String) ⊕ (String × List String)))
     (more : List (List String × ((String × List String) ⊕ (String × List String)))) :
@@ -110,9 +110,9 @@ example (first : List String × ((String × List String) ⊕ (String × List Str
 
 -- Inter-element whitespace may stand among children that are not phrasing content.
 example : N (.html .flow) :=
-  el .ul .flow segs![.one (el .li .listItem segs![]), .ws "\n", .one (el .li .listItem segs![])]
+  el .ul .flow segs![.one (el .li .listItem segs![]), .one (ws "\n"), .one (el .li .listItem segs![])]
 example : N (.html .tableRow) :=
-  el .tr .tableRow segs![.one (el .td .tableCell segs![]), .ws " \n", .one (el .td .tableCell segs![])]
+  el .tr .tableRow segs![.one (el .td .tableCell segs![]), .one (ws " \n"), .one (el .td .tableCell segs![])]
 
 -- Valid markup lean-html rejects, having no list to hold it.
 example : N (.html .flow) :=
@@ -122,7 +122,7 @@ example : N (.html .flow) :=
 example : N (.html .flow) :=
   el .dl .flow segs![.one (el .dt .term segs![]), .one (el .script .scriptSupporting segs![]),
     .one (el .dd .description segs![])]
-example : N (.html .head) := el .head .head segs![.ws "\n  ", .one (el .title .title segs![])]
+example : N (.html .head) := el .head .head segs![.one (ws "\n  "), .one (el .title .title segs![])]
 
 -- lean-html's rejections. Where lean-html rejects valid markup because the argument the child is
 -- passed in is typed, such as a `<legend>` among a `<fieldset>`'s children, the case here puts
@@ -249,7 +249,7 @@ example : N (.html .phrasing) := el .picture .phrasing segs![.one (el .img .imag
 /--
 error: could not synthesize default value for parameter 'ok' using tactics
 ---
-error: <picture> as Cat.html Html.Cat.phrasing does not admit its children: segment 1, of category Cat.html Html.Cat.phrasing, cannot follow the segments before it
+error: <picture> as Cat.html Html.Cat.phrasing does not admit its children: they end before it is complete
 -/
 #guard_msgs in
 example : N (.html .phrasing) := el .picture .phrasing segs![.one (el .span .phrasing segs![])]
@@ -326,7 +326,7 @@ error: Tactic `decide` proved that the proposition
 is false
 -/
 #guard_msgs in
-example : Seg vocab Unit .ws := .ws "x"
+example : N .ws := ws "x"
 
 -- whitespace for summary
 /--
@@ -335,7 +335,7 @@ error: could not synthesize default value for parameter 'ok' using tactics
 error: <details> as Cat.html Html.Cat.flow does not admit its children: they end before it is complete
 -/
 #guard_msgs in
-example : N (.html .flow) := el .details .flow segs![.ws "\n"]
+example : N (.html .flow) := el .details .flow segs![.one (ws "\n")]
 
 -- p in summary
 /--
@@ -425,7 +425,7 @@ error: could not synthesize default value for parameter 'ok' using tactics
 error: <head> as Cat.html Html.Cat.head does not admit its children: they end before it is complete
 -/
 #guard_msgs in
-example : N (.html .head) := el .head .head segs![.one (el .meta .metadata segs![])]
+example : N (.html .head) := el .head .head segs![.one (el .meta .phrasingMetadata segs![])]
 
 -- two titles
 /--
@@ -477,5 +477,43 @@ error: <ruby> as Cat.html Html.Cat.phrasing does not admit its children: they en
 example (segments : List (List String × List String)) : N (.html .phrasing) :=
   el .ruby .phrasing segs![.one (txt "x"), .one (rt "x"),
     .groups (Groups.ofList (segments.map fun (b, ts) => segs![base b, .many (Nodes.ofList (ts.map rt))]))]
+
+-- A node widens only to a category it is valid wherever.
+/--
+error: could not synthesize default value for parameter 'h' using tactics
+---
+error: Tactic `decide` proved that the proposition
+  vocab.widens (Cat.html Html.Cat.paragraph) (Cat.html Html.Cat.phrasing) = true
+is false
+-/
+#guard_msgs in
+example : N (.html .phrasing) := Web.widen (el .p .paragraph segs![])
+
+-- A run-time list takes the category of its position, mixing the members of that category.
+example (items : List (N (.html .listItemOrScript))) : N (.html .flow) :=
+  el .ul .flow segs![.many (Nodes.ofList items)]
+example (before after : List (N (.html .paragraphOrScript))) : N (.html .headingGroup) :=
+  el .hgroup .headingGroup segs![.many (Nodes.ofList before), .one (el .h1 .heading segs![]),
+    .many (Nodes.ofList after)]
+example (sources : List (N (.html .pictureSourceOrScript))) : N (.html .phrasing) :=
+  el .picture .phrasing segs![.many (Nodes.ofList sources), .one (el .img .image segs![])]
+example (options : List (N (.html .selectChild))) : N (.html .phrasing) :=
+  el .select .phrasing segs![.many (Nodes.ofList options)]
+example (cols : List (N (.html .tableColumnOrTemplate))) : N (.html .tableColumnGroup) :=
+  el .colgroup .tableColumnGroup segs![.many (Nodes.ofList cols)]
+
+-- A list of rows and scripts may turn out to hold only scripts, which is a table of no bodies.
+example (rows : List (N (.html .tableRowOrScript))) : N (.html .flow) :=
+  el .table .flow segs![.one (el .caption .tableCaption segs![]), .many (Nodes.ofList rows)]
+
+-- A list of one position's category is valid nowhere else.
+/--
+error: could not synthesize default value for parameter 'ok' using tactics
+---
+error: <div> as Cat.html Html.Cat.flow does not admit its children: segment 1, of category Cat.html Html.Cat.listItemOrScript, cannot follow the segments before it
+-/
+#guard_msgs in
+example (items : List (N (.html .listItemOrScript))) : N (.html .flow) :=
+  el .div .flow segs![.many (Nodes.ofList items)]
 
 end HtmlModelTests.ContentModel

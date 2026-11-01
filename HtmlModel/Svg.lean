@@ -9,7 +9,8 @@ module
 namespace HtmlModel.Svg
 
 inductive Elem where
-  | a | animate | animateMotion | animateTransform | circle | clipPath | defs | desc | ellipse
+  | a | animate | animateMotion | animateTransform | circle | clipPath | defs | desc | discard
+  | ellipse
   | feBlend | feColorMatrix | feComponentTransfer | feComposite | feConvolveMatrix
   | feDiffuseLighting | feDisplacementMap | feDistantLight | feDropShadow | feFlood | feFuncA
   | feFuncB | feFuncG | feFuncR | feGaussianBlur | feImage | feMerge | feMergeNode | feMorphology
@@ -20,7 +21,8 @@ inductive Elem where
   deriving DecidableEq, Repr
 
 def Elem.all : List Elem :=
-  [.a, .animate, .animateMotion, .animateTransform, .circle, .clipPath, .defs, .desc, .ellipse,
+  [.a, .animate, .animateMotion, .animateTransform, .circle, .clipPath, .defs, .desc, .discard,
+    .ellipse,
     .feBlend, .feColorMatrix, .feComponentTransfer, .feComposite, .feConvolveMatrix,
     .feDiffuseLighting, .feDisplacementMap, .feDistantLight, .feDropShadow, .feFlood, .feFuncA,
     .feFuncB, .feFuncG, .feFuncR, .feGaussianBlur, .feImage, .feMerge, .feMergeNode, .feMorphology,
@@ -32,7 +34,8 @@ def Elem.all : List Elem :=
 def Elem.name : Elem → String
   | .a => "a" | .animate => "animate" | .animateMotion => "animateMotion"
   | .animateTransform => "animateTransform" | .circle => "circle" | .clipPath => "clipPath"
-  | .defs => "defs" | .desc => "desc" | .ellipse => "ellipse" | .feBlend => "feBlend"
+  | .defs => "defs" | .desc => "desc" | .discard => "discard" | .ellipse => "ellipse"
+  | .feBlend => "feBlend"
   | .feColorMatrix => "feColorMatrix" | .feComponentTransfer => "feComponentTransfer"
   | .feComposite => "feComposite" | .feConvolveMatrix => "feConvolveMatrix"
   | .feDiffuseLighting => "feDiffuseLighting" | .feDisplacementMap => "feDisplacementMap"
@@ -60,7 +63,7 @@ inductive Group where
   deriving DecidableEq, Repr
 
 def Elem.groups : Elem → List Group
-  | .animate | .animateMotion | .animateTransform | .set => [.animation]
+  | .animate | .animateMotion | .animateTransform | .discard | .set => [.animation]
   | .desc | .title | .metadata => [.descriptive]
   | .linearGradient | .radialGradient => [.gradient, .paintServer]
   | .pattern => [.paintServer]
@@ -75,16 +78,50 @@ def Elem.groups : Elem → List Group
   | .feDistantLight | .fePointLight | .feSpotLight => [.lightSource]
   | _ => []
 
+def Group.all : List Group :=
+  [.animation, .descriptive, .paintServer, .gradient, .shape, .structural, .textContentChild,
+    .filterPrimitive, .transferFunction, .lightSource]
+
+/-- The distinct lists of children that content models admit in any number and order. The `a`
+variants are those within an `a`, which may not hold another. -/
+inductive Model where
+  | container | aContainer | text | aText | tspan | aTspan | textPath | aTextPath | clipPath | use
+  | switch | shape | gradient | stop | view
+  /-- What animation elements, `mpath`, and lighting filter primitives hold besides their one
+  required or optional child: descriptive elements and `script`. -/
+  | animation
+  | filter | componentTransfer | merge | feImage | primitive
+  deriving DecidableEq, Repr
+
+def Model.all : List Model :=
+  [.container, .aContainer, .text, .aText, .tspan, .aTspan, .textPath, .aTextPath, .clipPath, .use,
+    .switch, .shape, .gradient, .stop, .view, .animation, .filter, .componentTransfer, .merge,
+    .feImage, .primitive]
+
 /-- Content models list both named categories and single elements, so each element is a category
-of its own, which widens to the named categories it belongs to. -/
+of its own, which widens to the named categories it belongs to, and to the content of each model
+that lists it or one of them. -/
 inductive Cat where
   | el (e : Elem)
   | group (g : Group)
   /-- `a` holds what its parent holds, so it takes one category for each distinct content model
   of the parents that admit it. -/
   | aContainer | aText | aTspan | aTextPath
+  | content (m : Model)
   deriving DecidableEq, Repr
 
+def Cat.all : List Cat :=
+  Elem.all.map .el ++ Group.all.map .group ++ [.aContainer, .aText, .aTspan, .aTextPath] ++
+    Model.all.map .content
+
+theorem Cat.mem_all (c : Cat) : c ∈ Cat.all := by
+  cases c with
+  | el e => cases e <;> decide
+  | group g => cases g <;> decide
+  | content m => cases m <;> decide
+  | _ => decide
+
+/-- Every named category `c` belongs to, transitively. -/
 def Cat.above : Cat → List Cat
   | .el e => e.groups.map .group
   | .group .gradient => [.group .paintServer]

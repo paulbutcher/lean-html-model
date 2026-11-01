@@ -32,7 +32,7 @@ segment is wrong and how, from the counterexample `Vocabulary.rejection` finds. 
 syntax (name := admits) "admits" : tactic
 
 @[tactic admits] meta def evalAdmits : Tactic := fun _ => do
-  let ty ← instantiateMVars (← getMainTarget)
+  let ty ← whnfR (← instantiateMVars (← getMainTarget))
   try evalTactic (← `(tactic| decide +kernel))
   catch ex =>
     let (``Vocabulary.Admits, #[V, e, c, ks]) := ty.getAppFnArgs | throw ex
