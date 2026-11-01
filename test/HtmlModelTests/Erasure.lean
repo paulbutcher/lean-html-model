@@ -58,18 +58,13 @@ example : N (.html .phrasing) :=
     (Frag.ofList [⟨_, el .p .paragraph segs![.one (el .div .flow segs![])]⟩])
 
 -- A custom element has the content model its vocabulary declares for it.
-abbrev cards : Vocabulary := vocabWith [("my-card", [.html .flow], [(.html .flow, phrasingSpec)])]
+abbrev decls : Declarations := [("my-card", [.html .flow], [(.html .flow, phrasingSpec)])]
 
 def card : Elem := .custom "my-card" (by decide)
 
-abbrev C (c : Cat) := HtmlModel.Node cards.sig Unit c
-
-abbrev ce (e : Elem) (c : Cat) {ks : List (SegK Cat)} (segs : Segs cards.sig Unit ks)
-    (hc : c ∈ cards.cats e := by decide +kernel) (ok : cards.Admits e c ks := by admits) : C c :=
-  .elem e c () segs hc ok
-
-example : C (.html .flow) :=
-  ce card (.html .flow) segs![.one (.text "x"), .one (ce (.html .span) (.html .phrasing) segs![])]
+example : NodeWith decls Unit (.html .flow) :=
+  elemWith decls card (.html .flow) () segs![.one (.text "x"),
+    .one (elemWith decls (.html .span) (.html .phrasing) () segs![])]
 
 /--
 error: could not synthesize default value for parameter 'ok' using tactics
@@ -77,10 +72,14 @@ error: could not synthesize default value for parameter 'ok' using tactics
 error: <my-card> as Cat.html Html.Cat.flow does not admit its children: segment 1, of category Cat.html Html.Cat.paragraph, cannot follow the segments before it
 -/
 #guard_msgs in
-example : C (.html .flow) := ce card (.html .flow) segs![.one (ce (.html .p) (.html .paragraph) segs![])]
+example : NodeWith decls Unit (.html .flow) :=
+  elemWith decls card (.html .flow) () segs![.one (elemWith decls (.html .p) (.html .paragraph) () segs![])]
 
--- Its nodes coerce as the default vocabulary's do.
-example : List (C (.html .flow)) := [ce (.html .span) (.html .phrasing) segs![], (.text "x" : C .text)]
+-- Its nodes coerce as the default vocabulary's do, and the generic helpers resolve dotted names
+-- given the vocabulary.
+example : List (NodeWith decls Unit (.html .flow)) :=
+  [(vocabWith decls).elem (.html .span) (.html .phrasing) () segs![], (.text "x" : NodeWith decls Unit .text),
+    (wsWith decls " " : NodeWith decls Unit .ws)]
 
 -- Undeclared, it has the standard's: transparent, as phrasing or flow content.
 /--

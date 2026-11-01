@@ -143,6 +143,12 @@ def Frag.erase : Frag S α → List (Tree S α)
   | .cons n fr => Node.erase n :: Frag.erase fr
 end
 
+@[simp] theorem Segs.erase_append {ks ls : List (SegK S.Cat)} :
+    (xs : Segs S α ks) → (ys : Segs S α ls) → Segs.erase (xs.append ys) = xs.erase ++ ys.erase
+  | .nil, _ => rfl
+  | .cons x xs, ys => by
+    simp only [Segs.append, Segs.erase, Segs.erase_append xs ys, List.append_assoc]
+
 /-- A fragment erases to a list of trees, one per node. -/
 def Fragment.erase (f : Fragment S α) : List (Tree S α) := f.map (·.2.erase)
 

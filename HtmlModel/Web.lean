@@ -315,29 +315,53 @@ abbrev vocabWith (decls : Declarations) : Vocabulary where
 /-- The vocabulary of HTML, SVG, and MathML Core, with custom elements undeclared. -/
 abbrev vocab : Vocabulary := vocabWith []
 
-abbrev Node (α : Type) (c : Cat) := HtmlModel.Node vocab.sig α c
-abbrev Tree (α : Type) := HtmlModel.Tree vocab.sig α
-abbrev Fragment (α : Type) := HtmlModel.Fragment vocab.sig α
+abbrev NodeWith (decls : Declarations) (α : Type) (c : Cat) := HtmlModel.Node (vocabWith decls).sig α c
+abbrev TreeWith (decls : Declarations) (α : Type) := HtmlModel.Tree (vocabWith decls).sig α
+abbrev FragmentWith (decls : Declarations) (α : Type) := HtmlModel.Fragment (vocabWith decls).sig α
 
-/-- `Node.elem` with the vocabulary fixed, so that `.html` and the like resolve in its arguments. -/
+abbrev Node (α : Type) (c : Cat) := NodeWith [] α c
+abbrev Tree (α : Type) := TreeWith [] α
+abbrev Fragment (α : Type) := FragmentWith [] α
+
+/-- `Node.elem` in the vocabulary declaring `decls`, so that `.html` and the like resolve in its
+arguments. `elem` and the other helpers without `With` are those of `vocab`. -/
+abbrev elemWith (decls : Declarations) {α : Type} (e : Elem) (c : Cat) (p : α)
+    {ks : List (SegK Cat)} (segs : Segs (vocabWith decls).sig α ks)
+    (hc : c ∈ (vocabWith decls).cats e := by decide +kernel)
+    (ok : (vocabWith decls).Admits e c ks := by admits) : NodeWith decls α c :=
+  (vocabWith decls).elem e c p segs hc ok
+
 abbrev elem {α : Type} (e : Elem) (c : Cat) (p : α) {ks : List (SegK Cat)}
     (segs : Segs vocab.sig α ks) (hc : c ∈ vocab.cats e := by decide +kernel)
     (ok : vocab.Admits e c ks := by admits) : Node α c :=
-  HtmlModel.Node.elem e c p segs hc ok
+  vocab.elem e c p segs hc ok
 
-/-- `Node.unchecked` with the vocabulary fixed. -/
+/-- `Node.unchecked` in the vocabulary declaring `decls`. -/
+abbrev uncheckedWith (decls : Declarations) {α : Type} (ns : Namespace) (name : String) (c : Cat)
+    (p : α) (children : Frag (vocabWith decls).sig α)
+    (hname : ns.validName name = true := by decide +kernel) : NodeWith decls α c :=
+  (vocabWith decls).unchecked ns name c p children hname
+
 abbrev unchecked {α : Type} (ns : Namespace) (name : String) (c : Cat) (p : α)
     (children : Frag vocab.sig α) (hname : ns.validName name = true := by decide +kernel) :
     Node α c :=
-  HtmlModel.Node.unchecked ns name c p children hname
+  vocab.unchecked ns name c p children hname
 
-/-- Inter-element whitespace. -/
+/-- Inter-element whitespace in the vocabulary declaring `decls`. -/
+abbrev wsWith (decls : Declarations) {α : Type} (s : String)
+    (h : isWhitespace s = true := by decide +kernel) : NodeWith decls α .ws :=
+  (vocabWith decls).whitespace s h
+
 abbrev ws {α : Type} (s : String) (h : isWhitespace s = true := by decide +kernel) : Node α .ws :=
-  HtmlModel.Node.ws s h
+  vocab.whitespace s h
 
-/-- `n`, placed where category `d` is valid. -/
+/-- `n`, placed where category `d` is valid, in the vocabulary declaring `decls`. -/
+abbrev widenWith (decls : Declarations) {α : Type} {c d : Cat} (n : NodeWith decls α c)
+    (h : vocab.widens c d = true := by decide +kernel) : NodeWith decls α d :=
+  (vocabWith decls).widen n h
+
 abbrev widen {α : Type} {c d : Cat} (n : Node α c) (h : vocab.widens c d = true := by decide +kernel) :
     Node α d :=
-  HtmlModel.Node.widen n h
+  vocab.widen n h
 
 end HtmlModel.Web

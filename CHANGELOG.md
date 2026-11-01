@@ -9,6 +9,8 @@
 * Breaking: custom elements' content models are declared by the vocabulary, `Web.vocabWith`, and an undeclared one takes the standard's transparent content model
 * Breaking: `link` and `meta` take one category, which widens to metadata and phrasing content
 * Nodes coerce to any category they widen to
+* `Segs.append` joins two runs of segments
+* Helpers that take the vocabulary, `Vocabulary.elem` and its siblings, and `Web.elemWith` and its siblings for declared custom elements
 * SVG's `discard` element
 
 ## [0.2.0] - 2026-10-31

@@ -94,6 +94,11 @@ def Frag.ofList {α : Type} : Fragment S α → Frag S α
   | [] => .nil
   | ⟨_, n⟩ :: ns => .cons n (Frag.ofList ns)
 
+def Segs.append {α : Type} {ks ls : List (SegK S.Cat)} :
+    Segs S α ks → Segs S α ls → Segs S α (ks ++ ls)
+  | .nil, ys => ys
+  | .cons x xs, ys => .cons x (Segs.append xs ys)
+
 /-- `segs![a, b]` is `Segs.cons a (Segs.cons b Segs.nil)`. -/
 syntax "segs![" term,* "]" : term
 macro_rules
@@ -208,5 +213,32 @@ instance {c : S.Cat} : LawfulFunctor (NodeF S c) where
   map_const := rfl
   id_map := Node.map_id
   comp_map f g := Node.map_comp f g
+
+namespace Vocabulary
+
+variable (V : Vocabulary) {α : Type}
+
+/-- `Node.elem` with the vocabulary given, so that dotted names in its arguments resolve. -/
+abbrev elem (e : V.Elem) (c : V.Cat) (p : α) {ks : List (SegK V.Cat)} (segs : Segs V.sig α ks)
+    (hc : c ∈ V.cats e := by decide +kernel) (ok : V.Admits e c ks := by admits) :
+    Node V.sig α c :=
+  .elem e c p segs hc ok
+
+/-- `Node.unchecked` with the vocabulary given. -/
+abbrev unchecked (ns : Namespace) (name : String) (c : V.Cat) (p : α) (children : Frag V.sig α)
+    (hname : ns.validName name = true := by decide +kernel) : Node V.sig α c :=
+  .unchecked ns name c p children hname
+
+/-- `Node.ws` with the vocabulary given. -/
+abbrev whitespace (s : String) (h : isWhitespace s = true := by decide +kernel) :
+    Node V.sig α V.ws :=
+  .ws s h
+
+/-- `Node.widen` with the vocabulary given. -/
+abbrev widen {c d : V.Cat} (n : Node V.sig α c) (h : V.widens c d = true := by decide +kernel) :
+    Node V.sig α d :=
+  .widen n h
+
+end Vocabulary
 
 end HtmlModel

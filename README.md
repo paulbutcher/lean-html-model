@@ -94,7 +94,7 @@ example : (list ["a"]).erase.Valid := (list ["a"]).valid_erase
 
 ## Escape hatches
 
-- A custom element's name must be a valid custom element name. Its categories and content model are those `Web.vocabWith` declares for its name, checked like any other, or else the standard's: phrasing or flow content, transparent.
+- A custom element's name must be a valid custom element name. Its categories and content model are those `Web.vocabWith` declares for its name, checked like any other, or else the standard's: phrasing or flow content, transparent. `Web.elemWith`, `Web.NodeWith`, and their siblings build nodes of such a vocabulary, and `Vocabulary.elem` and its siblings of any.
 - An unchecked element takes a namespace, a name, a category, a payload, and children of any categories.
 - Verbatim markup is a leaf valid in any category.
 - `Node.hasUnchecked` and `Node.hasVerbatim`, and their counterparts on `Tree`, say whether a tree uses either, so that a consumer can refuse it.

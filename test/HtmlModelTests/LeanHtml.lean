@@ -30,11 +30,6 @@ def Whitespace.newline : Whitespace := { val := "\n" }
 instance {c : Html.Cat} [h : Widens .ws (.html c)] (w : Whitespace) : CoeT Whitespace w (Node c) :=
   ⟨Web.widen (Web.ws w.val w.isWhitespace) h.widens⟩
 
-def Segs.append {α : Type} {ks ls : List (SegK Cat)} :
-    Segs vocab.sig α ks → Segs vocab.sig α ls → Segs vocab.sig α (ks ++ ls)
-  | .nil, ys => ys
-  | .cons x xs, ys => .cons x (Segs.append xs ys)
-
 /-- An element of category `c` whose children are one run-time list of category `d`. -/
 abbrev listElement (e : Html.Elem) (c d : Html.Cat) (children : List (Node d)) (attrs : Attrs)
     (hc : Cat.html c ∈ vocab.cats (.html e) := by decide +kernel)
