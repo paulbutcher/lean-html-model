@@ -16,7 +16,7 @@ git = "https://github.com/paulbutcher/lean-html-model"
 
 ## Usage
 
-A node is indexed by the category it is valid in, and carries a payload of any type on each element, such as an attribute list. `Web.elem` builds an element from an element, the category it takes, a payload, and its children as segments, and proves by default that the element admits them. `Web.widen` places a node wherever a category it widens to is valid, so that a list known only at run time may hold nodes of several categories; the element keeps the category it was checked as.
+A node is indexed by the category it is valid in, and carries a payload of any type on each element, such as an attribute list. `Web.elem` builds an element from an element, the category it takes, a payload, and its children as segments, and proves by default that the element admits them. `Web.widen` places a node wherever a category it widens to is valid, so that a list known only at run time may hold nodes of several categories; the element keeps the category it was checked as. A node also coerces to any category it widens to, so that a list literal may mix categories.
 
 ```lean
 import HtmlModel

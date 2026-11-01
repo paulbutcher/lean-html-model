@@ -516,4 +516,19 @@ error: <div> as Cat.html Html.Cat.flow does not admit its children: segment 1, o
 example (items : List (N (.html .listItemOrScript))) : N (.html .flow) :=
   el .div .flow segs![.many (Nodes.ofList items)]
 
+-- Nodes coerce to any category they widen to, so that a list literal may mix categories.
+example (n : N .ws) : List (N (.html .flow)) :=
+  [el .p .paragraph segs![], el .span .phrasing segs![], txt "x", n]
+
+/--
+error: Type mismatch
+  el Html.Elem.p Html.Cat.paragraph Segs.nil ?m.4 ?m.5
+has type
+  N (Cat.html Html.Cat.paragraph)
+but is expected to have type
+  N (Cat.html Html.Cat.phrasing)
+-/
+#guard_msgs in
+example : N (.html .phrasing) := el .p .paragraph segs![]
+
 end HtmlModelTests.ContentModel

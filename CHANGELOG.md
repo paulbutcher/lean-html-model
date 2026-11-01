@@ -8,6 +8,7 @@
 * Breaking: nodes and trees are built on a `Signature` derived from the vocabulary, so that building and erasing a tree reaches none of its tables or grammars at run time
 * Breaking: custom elements' content models are declared by the vocabulary, `Web.vocabWith`, and an undeclared one takes the standard's transparent content model
 * Breaking: `link` and `meta` take one category, which widens to metadata and phrasing content
+* Nodes coerce to any category they widen to
 * SVG's `discard` element
 
 ## [0.2.0] - 2026-10-31

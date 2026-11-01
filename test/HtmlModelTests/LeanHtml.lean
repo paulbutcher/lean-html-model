@@ -18,14 +18,7 @@ open HtmlModel Web
 abbrev Attrs := List (String × String)
 abbrev Node (c : Html.Cat) := Web.Node Attrs (.html c)
 
-/-- `c` widens to `d`, so that a node of one coerces to the other. -/
-class Sub (c d : Cat) : Prop where
-  widens : vocab.widens c d = true
-
-instance {c d : Html.Cat} [h : Sub (.html c) (.html d)] (n : Node c) : CoeT (Node c) n (Node d) :=
-  ⟨Web.widen n h.widens⟩
-
-instance {c : Html.Cat} [h : Sub .text (.html c)] (s : String) : CoeT String s (Node c) :=
+instance {c : Html.Cat} [h : Widens .text (.html c)] (s : String) : CoeT String s (Node c) :=
   ⟨Web.widen (.text s) h.widens⟩
 
 structure Whitespace where
@@ -34,32 +27,8 @@ structure Whitespace where
 
 def Whitespace.newline : Whitespace := { val := "\n" }
 
-instance {c : Html.Cat} [h : Sub .ws (.html c)] (w : Whitespace) : CoeT Whitespace w (Node c) :=
+instance {c : Html.Cat} [h : Widens .ws (.html c)] (w : Whitespace) : CoeT Whitespace w (Node c) :=
   ⟨Web.widen (Web.ws w.val w.isWhitespace) h.widens⟩
-
-syntax "subcategory " term " => " term,+ : command
-macro_rules
-  | `(subcategory $c => $ds,*) => do
-    let cmds ← ds.getElems.mapM fun d => `(instance : Sub $c $d := ⟨by decide⟩)
-    return Lean.mkNullNode cmds
-
-subcategory .text => .html .phrasing, .html .flow
-subcategory .ws => .html .flow, .html .listItemOrScript, .html .metadata
-subcategory .html .phrasing => .html .flow
-subcategory .html .heading => .html .flow
-subcategory .html .paragraph => .html .flow
-subcategory .html .phrasingMetadata => .html .metadata, .html .flow
-subcategory .html .listItem => .html .listItemOrScript
-subcategory .html .term => .html .termOrScript
-subcategory .html .description => .html .descriptionOrScript
-subcategory .html .descriptionGroup => .html .descriptionGroupOrScript
-subcategory .html .tableRow => .html .tableRowOrScript
-subcategory .html .tableBody => .html .tableBodyOrScript
-subcategory .html .tableCell => .html .tableCellOrScript
-subcategory .html .scriptSupporting => .html .flow, .html .metadata, .html .listItemOrScript,
-  .html .termOrScript, .html .descriptionOrScript, .html .descriptionGroupOrScript,
-  .html .tableRowOrScript, .html .tableCellOrScript, .html .tableBodyOrScript
-subcategory .html .template => .html .flow, .html .listItemOrScript
 
 def Segs.append {α : Type} {ks ls : List (SegK Cat)} :
     Segs vocab.sig α ks → Segs vocab.sig α ls → Segs vocab.sig α (ks ++ ls)

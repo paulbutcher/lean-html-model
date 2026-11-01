@@ -15,4 +15,5 @@ public import HtmlModel.Html
 public import HtmlModel.Svg
 public import HtmlModel.Mathml
 public import HtmlModel.Web
+public import HtmlModel.Coe
 public import HtmlModel.Layout

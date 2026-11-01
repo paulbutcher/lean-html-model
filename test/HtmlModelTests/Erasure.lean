@@ -79,6 +79,9 @@ error: <my-card> as Cat.html Html.Cat.flow does not admit its children: segment 
 #guard_msgs in
 example : C (.html .flow) := ce card (.html .flow) segs![.one (ce (.html .p) (.html .paragraph) segs![])]
 
+-- Its nodes coerce as the default vocabulary's do.
+example : List (C (.html .flow)) := [ce (.html .span) (.html .phrasing) segs![], (.text "x" : C .text)]
+
 -- Undeclared, it has the standard's: transparent, as phrasing or flow content.
 /--
 error: could not synthesize default value for parameter 'ok' using tactics
