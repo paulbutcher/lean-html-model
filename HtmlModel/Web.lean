@@ -315,6 +315,82 @@ abbrev vocabWith (decls : Declarations) : Vocabulary where
 /-- The vocabulary of HTML, SVG, and MathML Core, with custom elements undeclared. -/
 abbrev vocab : Vocabulary := vocabWith []
 
+/-- The namespace whose elements a category's members are. Text, whitespace, and `.any` belong to
+none. -/
+def Cat.ns? : Cat → Option Namespace
+  | .html _ => some .html
+  | .svg _ => some .svg
+  | .mathml _ => some .mathml
+  | .text | .ws | .any => none
+
+/-- The namespace in which children of element `e` as category `c` name their tags, as the HTML
+parser reads them. Children that may be any element are read as HTML, as in `foreignObject`. -/
+def childNamespace (e : Elem) (c : Cat) : Option Namespace :=
+  (vocab.spec e c).grammar.letters.findSome? fun
+    | .any => some .html
+    | d => d.ns?
+
+def namespaces : List Namespace := [.html, .svg, .mathml]
+
+/-- The element of namespace `ns`'s own that `name` names. -/
+def Elem.ofNameNs? (name : String) : Namespace → Option Elem
+  | .html => (Html.Elem.ofName? name).map .html
+  | .svg => (Svg.Elem.ofName? name).map .svg
+  | .mathml => (Mathml.Elem.ofName? name).map .mathml
+
+def Elem.custom? (name : String) : Option Elem :=
+  if h : isCustomElementName name then some (.custom name h) else none
+
+/-- Whether `e` may stand among children read in namespace `ns`: one of its categories, or one
+above, belongs to `ns`, as `svg` and `math` do in HTML. -/
+def Elem.standsIn (ns : Namespace) (e : Elem) : Bool :=
+  (vocab.cats e).any fun c => (c :: c.above).any (·.ns? == some ns)
+
+/-- The element `name` names among children read in `ns`, or with `none`, the first of an HTML,
+SVG, MathML, or custom element that it names. -/
+def Elem.ofNameIn? : Option Namespace → String → Option Elem
+  | some ns, name =>
+    Elem.ofNameNs? name ns <|>
+      namespaces.findSome? (fun o => (Elem.ofNameNs? name o).filter (·.standsIn ns)) <|>
+      if ns == .html then Elem.custom? name else none
+  | none, name => namespaces.findSome? (Elem.ofNameNs? name) <|> Elem.custom? name
+
+theorem Elem.ofNameNs?_name {name : String} {ns : Namespace} {e : Elem}
+    (h : Elem.ofNameNs? name ns = some e) : vocab.name e = name := by
+  cases ns <;>
+    simp only [ofNameNs?, Html.Elem.ofName?, Svg.Elem.ofName?, Mathml.Elem.ofName?,
+      Option.map_eq_some_iff] at h <;>
+    obtain ⟨e', h, rfl⟩ := h <;>
+    simpa using List.find?_some h
+
+theorem Elem.custom?_name {name : String} {e : Elem} (h : Elem.custom? name = some e) :
+    vocab.name e = name := by
+  unfold custom? at h
+  split at h <;> cases h
+  rfl
+
+theorem Elem.ofNameIn?_name {ns : Option Namespace} {name : String} {e : Elem}
+    (h : Elem.ofNameIn? ns name = some e) : vocab.name e = name := by
+  have orElse {a b : Option Elem} (h : (a <|> b) = some e) : a = some e ∨ b = some e := by
+    cases a <;> simp_all [HOrElse.hOrElse, OrElse.orElse, Option.orElse]
+  have inNs {f : Namespace → Option Elem} (hf : ∀ o, f o = some e → Elem.ofNameNs? name o = some e)
+      (h : namespaces.findSome? f = some e) : vocab.name e = name :=
+    let ⟨o, _, ho⟩ := List.exists_of_findSome?_eq_some h
+    Elem.ofNameNs?_name (hf o ho)
+  cases ns with
+  | some ns =>
+    rcases orElse h with h | h
+    · exact Elem.ofNameNs?_name h
+    rcases orElse h with h | h
+    · exact inNs (fun _ h => Option.eq_some_of_filter_eq_some h) h
+    · split at h
+      · exact Elem.custom?_name h
+      · cases h
+  | none =>
+    rcases orElse h with h | h
+    · exact inNs (fun _ h => h) h
+    · exact Elem.custom?_name h
+
 abbrev NodeWith (decls : Declarations) (α : Type) (c : Cat) := HtmlModel.Node (vocabWith decls).sig α c
 abbrev TreeWith (decls : Declarations) (α : Type) := HtmlModel.Tree (vocabWith decls).sig α
 abbrev FragmentWith (decls : Declarations) (α : Type) := HtmlModel.Fragment (vocabWith decls).sig α

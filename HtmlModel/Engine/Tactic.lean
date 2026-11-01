@@ -27,13 +27,17 @@ meta def kernelNormalize (fuel : Nat) (e : Expr) : MetaM Expr := do
       if i < ctor.numParams then pure a else kernelNormalize fuel a
     return mkAppN e.getAppFn args
 
-/-- Proves that an element admits its children by `decide +kernel`. When it does not, says which
-segment is wrong and how, from the counterexample `Vocabulary.rejection` finds. -/
+/-- Proves that an element admits its children by `decide +kernel`, first of their coarser
+`Shape.kinds`, which decides at once wherever the content model takes its children in any order,
+however many there are. When they are not admitted, says which segment is wrong and how, from the
+counterexample `Vocabulary.rejection` finds. -/
 syntax (name := admits) "admits" : tactic
 
 @[tactic admits] meta def evalAdmits : Tactic := fun _ => do
   let ty ← whnfR (← instantiateMVars (← getMainTarget))
-  try evalTactic (← `(tactic| decide +kernel))
+  try evalTactic (← `(tactic| first
+    | exact Vocabulary.admits_of_kinds _ (by decide +kernel)
+    | decide +kernel))
   catch ex =>
     let (``Vocabulary.Admits, #[V, e, c, ks]) := ty.getAppFnArgs | throw ex
     if ty.hasMVar then throw ex

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0] - 2026-11-01
+
+* `HtmlPayload` and `EventAttr`, the classes a markup macro builds payloads with
+* `HtmlModel.Quote`, `ToExpr` instances for elements and categories
+* `Web.childNamespace` and `Web.Elem.ofNameIn?`, the namespace an element's children are read in and the element a tag name names there
+* `admits` tries `Vocabulary.admits_of_kinds` first, so that an element of many children in any order is decided at once
+
 ## [0.3.1] - 2026-11-01
 
 * `Tree.isInlineIn` and `Tree.childrenInline` judge layout by the parent too, so that nothing in `head` counts as inline

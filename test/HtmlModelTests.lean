@@ -18,3 +18,6 @@ import HtmlModelTests.Readme
 import HtmlModelTests.LeanHtml
 import HtmlModelTests.LasmTerms
 import HtmlModelTests.Footprint
+import HtmlModelTests.Payload
+import HtmlModelTests.Quote
+import HtmlModelTests.Namespaces

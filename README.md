@@ -102,9 +102,10 @@ example : (list ["a"]).erase.Valid := (list ["a"]).valid_erase
 ## For macro authors
 
 - A child whose category is unknown when the tree is elaborated, such as an absent optional child or an empty list literal, makes elaboration fail or slow down sharply. `Seg.ofOption` and `Seg.ofList` take the category explicitly.
-- Lean defers default-argument proofs to the end of a term, where thousands of them slow down together. A large generated term should prove each distinct element, category, and kinds of children once as an auxiliary theorem and pass it explicitly; `test/Main.lean` generates such a term of 2,000 elements, which elaborates in about 3 seconds. `Vocabulary.admits_of_kinds` reuses a proof across children whose kinds differ but coarsen alike.
-- `Vocabulary.infer` finds the category an element takes from its children and its parent's content model, and `Html.Elem.ofName?`, `Svg.Elem.ofName?`, and `Mathml.Elem.ofName?` the element a tag name names. Text a macro knows to be whitespace, such as JSX's space between elements, should be a `Web.ws` node, which may stand where text may not.
+- Lean defers default-argument proofs to the end of a term, where thousands of them slow down together. A large generated term should prove each distinct element, category, and kinds of children once as an auxiliary theorem and pass it explicitly; `test/Main.lean` generates such a term of 2,000 elements, which elaborates in about 3 seconds. `Vocabulary.admits_of_kinds` reuses a proof across children whose kinds differ but coarsen alike, and `admits` tries it first, so that an element of many children in any order is decided at once.
+- `Vocabulary.infer` finds the category an element takes from its children and its parent's content model. `Web.childNamespace` gives the namespace an element's children name their tags in, as the HTML parser reads them, and `Web.Elem.ofNameIn?` the element a tag name names there, so that `a` in SVG `text` is SVG's, `b` in `mi` is HTML's, and `svg` and `math` are found from HTML; `Html.Elem.ofName?` and its siblings look in one namespace only. Text a macro knows to be whitespace, such as JSX's space between elements, should be a `Web.ws` node, which may stand where text may not.
 - `Tree.isInline` says whether whitespace beside a node would render, so that a pretty-printer must not put any there; `Tree.isInlineIn` and `Tree.childrenInline` judge a child by its parent too, so that nothing in `head` counts. `Tree.keepsWhitespace` says whether whitespace renders among an element's children wherever it stands, as in SVG `text` and MathML token elements.
+- A macro generic over the payload builds it with `HtmlPayload` and `EventAttr`, whose instances belong to the payload's own library. `HtmlModel.Quote`, which `HtmlModel` does not import, quotes elements and categories with `Lean.ToExpr`.
 
 ## Formal verification
 
@@ -112,6 +113,7 @@ example : (list ["a"]).erase.Valid := (list ["a"]).valid_erase
 - `Node.valid_erase`: a typed node erases to a tree satisfying `Tree.Valid`, which is stated on the erased tree alone, so that a consumer of the erased tree can rely on it without the typed one. It holds of widened nodes because each vocabulary proves widening a preorder.
 - `Node.erase_map`: the payload map commutes with erasure, and `NodeF` is a `LawfulFunctor`.
 - `Vocabulary.infer_spec`: an inferred category is one the element may take, and admits its children.
+- `Web.Elem.ofNameIn?_name`: an element found by its tag name has that name.
 
 ## License
 

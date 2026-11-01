@@ -7,13 +7,14 @@ import Lake
 open Lake DSL
 
 package «html-model» where
-  version := v!"0.3.1"
+  version := v!"0.4.0"
   leanOptions := #[⟨`warningAsError, true⟩]
 
 require regular from git "https://github.com/paulbutcher/lean-regular" @ "v0.2.0"
 
 @[default_target]
-lean_lib HtmlModel
+lean_lib HtmlModel where
+  globs := #[.andSubmodules `HtmlModel]
 
 /-- The `test` subproject is deliberately not a dependency of this package, so that
 downstream consumers don't inherit test-only tooling. Running it as a child process

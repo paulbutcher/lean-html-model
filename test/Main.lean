@@ -4,10 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 import HtmlModelTests
 
-/-! Times elaborating three generated documents: one of 500 elements with default proofs, one of 500
-mixing HTML, SVG and MathML with default proofs, and one of 2,000 in a single term, as a macro such
-as `html!` would generate it, proving each distinct element, category and kinds of children once and
-reusing the proof.
+/-! Times elaborating four generated documents: one of 500 elements with default proofs, one of 500
+mixing HTML, SVG and MathML with default proofs, one of 2,000 in a single term, as a macro such as
+`html!` would generate it, proving each distinct element, category and kinds of children once and
+reusing the proof, and a `div` of 100 `div` children with default proofs.
 
 Each time excludes loading the imports and is budgeted in units of a fixed kernel reduction timed in
 the same run, so that the budgets hold on a slower machine. Heartbeats would not depend on the
@@ -86,6 +86,12 @@ def mixedSection (i : Nat) : String :=
   ".one (sv .path segs![]), .one (sv .text segs![.one (txt \"t\"), .one (sv .tspan segs![.one (txt \"x\")])]), " ++
   ".one (sa .aContainer segs![.one (sv .rect segs![])])])])]"
 
+/-- An element of many children whitespace could stand for, which the exact decision takes each as
+an optional letter. -/
+def wideDocument (children : Nat) : String :=
+  header ++ s!"def doc : N (.html .flow) := el .div .flow segs![" ++
+    ", ".intercalate (List.replicate children ".one (el .div .flow segs![])") ++ "]\n"
+
 def mixedDocument (sections : Nat) : String :=
   header ++ s!"def doc : N (.html .flow) := el .div .flow segs![nodes [\n  " ++
     ",\n  ".intercalate ((List.range sections).map mixedSection) ++ "]]\n"
@@ -127,4 +133,5 @@ def main : IO UInt32 := do
   let defaults ← run imports unit "Defaults" 2 (document 25 false)
   let mixed ← run imports unit "Mixed" 2 (mixedDocument 17)
   let cached ← run imports unit "Cached" 8 (document 100 true)
-  return if defaults && mixed && cached then 0 else 1
+  let wide ← run imports unit "Wide" 1 (wideDocument 100)
+  return if defaults && mixed && cached && wide then 0 else 1
