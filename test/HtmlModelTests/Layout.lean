@@ -26,4 +26,26 @@ example : (Node.verbatim "<div></div>" : N (.html .flow)).erase.isInline = true 
 example : (Web.unchecked .html "fencedframe" (.html .flow) () .nil : N (.html .flow)).erase.isInline = true := by
   decide +kernel
 
+-- Nothing in `head` renders, so `link` and `meta` lay out inline only among phrasing content.
+def metaTag : N (.html .phrasingMetadata) := el .meta .phrasingMetadata segs![]
+def linkTag : N (.html .phrasingMetadata) := el .link .phrasingMetadata segs![]
+def headNoscript : N (.html .metadata) :=
+  let ch : List (N (.html .noscriptMetadata)) := [metaTag, linkTag]
+  el .noscript .metadata segs![.many (Nodes.ofList ch)]
+def head : N (.html .head) :=
+  let ch : List (N (.html .metadata)) := [metaTag, linkTag, headNoscript]
+  el .head .head segs![.many (Nodes.ofList ch), .one (el .title .title segs![.one (txt "T")])]
+def para : N (.html .paragraph) :=
+  el .p .paragraph segs![.many (Nodes.ofList ([txt "x", metaTag] : List (N (.html .phrasing))))]
+def bodyNoscript : N (.html .phrasing) := el .noscript .phrasing segs![.one (txt "x")]
+
+example : head.erase.childrenInline = false := by decide +kernel
+example : head.erase.isInlineIn metaTag.erase = false := by decide +kernel
+example : headNoscript.erase.childrenInline = false := by decide +kernel
+example : headNoscript.erase.isInlineIn linkTag.erase = false := by decide +kernel
+example : para.erase.childrenInline = true := by decide +kernel
+example : para.erase.isInlineIn metaTag.erase = true := by decide +kernel
+example : bodyNoscript.erase.childrenInline = true := by decide +kernel
+example : para.erase.isInlineIn bodyNoscript.erase = true := by decide +kernel
+
 end HtmlModelTests.Layout

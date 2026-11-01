@@ -41,7 +41,8 @@ meta def forbidden : List Name :=
 #eval show CoreM Unit from do
   let used := reachable (← getEnv)
     [``LasmTerms.render, ``LasmTerms.renderEmbedded, ``LeanHtml.page, ``LeanHtml.list,
-      ``LeanHtml.rows, ``LeanHtml.kanji]
+      ``LeanHtml.rows, ``LeanHtml.kanji, ``HtmlModel.Tree.isInlineIn,
+      ``HtmlModel.Tree.childrenInline]
   unless used.toList.any (``HtmlModel.Node.erase).isPrefixOf do
     throwError "the walk did not reach erasure"
   let bad := used.toList.filter fun n => forbidden.any (·.isPrefixOf n)

@@ -104,7 +104,7 @@ example : (list ["a"]).erase.Valid := (list ["a"]).valid_erase
 - A child whose category is unknown when the tree is elaborated, such as an absent optional child or an empty list literal, makes elaboration fail or slow down sharply. `Seg.ofOption` and `Seg.ofList` take the category explicitly.
 - Lean defers default-argument proofs to the end of a term, where thousands of them slow down together. A large generated term should prove each distinct element, category, and kinds of children once as an auxiliary theorem and pass it explicitly; `test/Main.lean` generates such a term of 2,000 elements, which elaborates in about 3 seconds. `Vocabulary.admits_of_kinds` reuses a proof across children whose kinds differ but coarsen alike.
 - `Vocabulary.infer` finds the category an element takes from its children and its parent's content model, and `Html.Elem.ofName?`, `Svg.Elem.ofName?`, and `Mathml.Elem.ofName?` the element a tag name names. Text a macro knows to be whitespace, such as JSX's space between elements, should be a `Web.ws` node, which may stand where text may not.
-- `Tree.isInline` says whether whitespace beside a node would render, so that a pretty-printer must not put any there. `Tree.keepsWhitespace` says whether whitespace renders among an element's children wherever it stands, as in SVG `text` and MathML token elements.
+- `Tree.isInline` says whether whitespace beside a node would render, so that a pretty-printer must not put any there; `Tree.isInlineIn` and `Tree.childrenInline` judge a child by its parent too, so that nothing in `head` counts. `Tree.keepsWhitespace` says whether whitespace renders among an element's children wherever it stands, as in SVG `text` and MathML token elements.
 
 ## Formal verification
 

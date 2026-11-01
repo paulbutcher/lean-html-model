@@ -30,6 +30,19 @@ def _root_.HtmlModel.Tree.allInline : List (Tree α) → Bool
   | t :: ts => Tree.isInline t && Tree.allInline ts
 end
 
+/-- Whether whitespace beside `t`, standing among the children of `parent`, would render. As
+`Tree.isInline`, except that nothing in `head`, or in a `noscript` standing there, renders. -/
+def _root_.HtmlModel.Tree.isInlineIn (parent t : Tree α) : Bool :=
+  match parent with
+  | .elem _ (.html .head) _ _ | .elem (.html .noscript) (.html .metadata) _ _ => false
+  | _ => t.isInline
+
+/-- Whether every one of this element's children lays out inline within it. -/
+def _root_.HtmlModel.Tree.childrenInline (t : Tree α) : Bool :=
+  match t with
+  | .elem _ _ _ ch | .unchecked _ _ _ _ ch => ch.all t.isInlineIn
+  | .text _ | .verbatim _ _ => true
+
 /-- Whether whitespace renders among this element's children wherever it stands, so that a
 pretty-printer may add none there even beside children that are not inline. -/
 def _root_.HtmlModel.Tree.keepsWhitespace : Tree α → Bool

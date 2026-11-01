@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.1] - 2026-11-01
+
+* `Tree.isInlineIn` and `Tree.childrenInline` judge layout by the parent too, so that nothing in `head` counts as inline
+
 ## [0.3.0] - 2026-11-01
 
 * Breaking: a node widens to any category it is valid wherever, keeping the category it was checked as, so that a list known only at run time may mix categories
