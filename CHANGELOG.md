@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.1] - 2026-11-01
+
+* Requires lean-regular 0.2.1
+
 ## [0.4.0] - 2026-11-01
 
 * `HtmlPayload` and `EventAttr`, the classes a markup macro builds payloads with
