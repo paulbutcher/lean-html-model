@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.0] - 2026-11-23
+
+* Breaking: requires Lean v4.36.0
+
 ## [0.4.1] - 2026-11-01
 
 * Requires lean-regular 0.2.1
