@@ -10,7 +10,7 @@ package «html-model» where
   version := v!"0.5.0"
   leanOptions := #[⟨`warningAsError, true⟩]
 
-require regular from git "https://github.com/paulbutcher/lean-regular" @ "v0.2.1"
+require regular from git "https://github.com/paulbutcher/lean-regular" @ "v0.3.0"
 
 @[default_target]
 lean_lib HtmlModel where
